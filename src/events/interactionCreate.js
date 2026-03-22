@@ -32,15 +32,15 @@ module.exports = {
                 );
 
                 if (existingChannel) {
-                    return interaction.editReply({ 
-                        content: `⚠️ Ya tienes un ticket abierto en este servidor: ${existingChannel}.`, 
-                        ephemeral: true 
+                    return interaction.editReply({
+                        content: `⚠️ Ya tienes un ticket abierto en este servidor: ${existingChannel}.`,
+                        ephemeral: true
                     });
                 }
 
                 // Obtener configuración personalizada de la DB
                 const settings = db.prepare('SELECT ticket_welcome_msg, staff_role FROM guild_settings WHERE guild_id = ?')
-                                   .get(interaction.guild.id);
+                    .get(interaction.guild.id);
 
                 try {
                     const channel = await interaction.guild.channels.create({
@@ -100,29 +100,41 @@ module.exports = {
                 await interaction.deferUpdate();
 
                 const channel = interaction.channel;
-                const settings = db.prepare('SELECT ticket_log_channel FROM guild_settings WHERE guild_id = ?').get(interaction.guild.id);
+                const settings = db.prepare('SELECT ticket_log_channel, ticket_dm_preference FROM guild_settings WHERE guild_id = ?').get(interaction.guild.id);
 
                 const attachment = await discordTranscripts.createTranscript(channel, {
                     limit: -1,
-                    fileName: `ticket-${channel.name}.html`,
-                    saveImages: true
+                    fileName: `Respaldo-${channel.name}.html`,
+                    saveImages: true,
+                    poweredBy: false // Más profesional, quita la marca de agua
                 });
 
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('📄 Nuevo Transcript Generado')
+                    .addFields(
+                        { name: '👤 Usuario', value: `${interaction.user.tag}`, inline: true },
+                        { name: '🆔 ID', value: `${interaction.user.id}`, inline: true },
+                        { name: '📂 Canal', value: `${channel.name}`, inline: true }
+                    )
+                    .setColor('#F1C40F')
+                    .setTimestamp();
+
+                // 1. SIEMPRE al canal de staff (si está configurado)
                 if (settings?.ticket_log_channel) {
                     const logChannel = interaction.guild.channels.cache.get(settings.ticket_log_channel);
-                    if (logChannel) await logChannel.send({ 
-                        content: `📜 Transcript generado para el ticket de **${interaction.user.tag}**`, 
-                        files: [attachment] 
-                    });
+                    if (logChannel) await logChannel.send({ embeds: [logEmbed], files: [attachment] });
                 }
 
-                try {
-                    await interaction.user.send({ 
-                        content: `Aquí tienes el resumen de tu atención en **${interaction.guild.name}**:`, 
-                        files: [attachment] 
-                    });
-                } catch (e) { 
-                    console.log("No se pudo enviar el DM (DMs cerrados)."); 
+                // 2. Al DM solo si el Admin lo activó en el /setup-tickets
+                if (settings?.ticket_dm_preference === 1) {
+                    try {
+                        await interaction.user.send({
+                            content: `👋 Hola! Aquí tienes el respaldo de tu consulta en **${interaction.guild.name}**.`,
+                            files: [attachment]
+                        });
+                    } catch (e) {
+                        console.log("DM Bloqueado por el usuario.");
+                    }
                 }
 
                 await interaction.followUp({ content: '✅ Proceso finalizado. El canal se borrará en 5 segundos.' });
@@ -137,18 +149,23 @@ module.exports = {
 
         // 3. LÓGICA DE MENÚS DESPLEGABLES (HELP)
         if (interaction.isStringSelectMenu()) {
-            if (interaction.customId === 'help_menu') {
+            if (interaction.isStringSelectMenu() && interaction.customId === 'help_menu') {
                 const category = interaction.values[0];
+                const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
+
+                // Iconos dinámicos por categoría
+                const icons = { admin: '🛡️', utility: '🛠️' };
 
                 const displayCommands = interaction.client.commands
                     .filter(cmd => cmd.category === category)
-                    .map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`)
-                    .join('\n');
+                    .map(cmd => `> \`/${cmd.data.name}\` \n ${cmd.data.description}`)
+                    .join('\n\n');
 
                 const helpEmbed = new EmbedBuilder()
-                    .setTitle(`Categoría: ${category.toUpperCase()}`)
-                    .setDescription(displayCommands || 'No se encontraron comandos.')
+                    .setTitle(`${icons[category] || '📁'} Categoría: ${categoryName}`)
+                    .setDescription(displayCommands || '*No hay comandos registrados en esta sección.*')
                     .setColor('#5865F2')
+                    .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
                     .setTimestamp();
 
                 await interaction.update({ embeds: [helpEmbed] });

@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
-    "deploy": "node deploy-commands.js"
+    "deploy": "node deploy-commands.js",
+    "bot": "nodemon src/index.js",
+    "dev": "node deploy-commands.js && nodemon src/index.js",
+    "start": "node src/index.js"
   },
   "keywords": [],
   "author": "",
