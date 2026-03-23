@@ -5,78 +5,95 @@ module.exports = {
     category: 'admin',
     data: new SlashCommandBuilder()
         .setName('settings')
-        .setDescription('Configura las opciones globales del bot para este servidor.')
+        .setDescription('⚙️ Gestiona el núcleo de configuración del servidor.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        // Canales Generales
-        .addChannelOption(opt => opt.setName('welcome_channel').setDescription('Canal para mensajes de bienvenida'))
-        .addChannelOption(opt => opt.setName('ticket_logs').setDescription('Canal donde se enviarán los Transcripts de tickets'))
-        // Roles
-        .addRoleOption(opt => opt.setName('staff_role').setDescription('Rol de moderación/staff para tickets'))
-        // Visualización
-        .addBooleanOption(opt => opt.setName('view').setDescription('Muestra la configuración actual del servidor')),
+        // Grupo: Canales
+        .addChannelOption(opt => opt.setName('welcome_channel').setDescription('👋 Canal para los mensajes de bienvenida.'))
+        .addChannelOption(opt => opt.setName('ticket_logs').setDescription('📜 Canal para los respaldos (transcripts) de tickets.'))
+        // Grupo: Roles
+        .addRoleOption(opt => opt.setName('staff_role').setDescription('🛡️ Rol asignado para la gestión de tickets.'))
+        // Grupo: Sistema
+        .addBooleanOption(opt => opt.setName('view').setDescription('🔍 Visualiza el estado actual de la configuración.')),
 
     async execute(interaction) {
+        await interaction.deferReply({ ephemeral: true });
         const guildId = interaction.guild.id;
 
-        // 1. Obtención de valores (DENTRO del execute)
         const welcomeChannel = interaction.options.getChannel('welcome_channel');
         const ticketLogs = interaction.options.getChannel('ticket_logs');
         const staffRole = interaction.options.getRole('staff_role');
         const isViewMode = interaction.options.getBoolean('view');
 
-        // 2. Validación: Si no hay vista Y no hay opciones, avisamos al usuario
+        // 1. Cláusula de Guardia: Si no hay parámetros
         if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole) {
-            return interaction.reply({
-                content: '⚠️ Debes seleccionar al menos una opción para configurar o usar `view: True`.',
-                ephemeral: true
+            return interaction.editReply({
+                content: '⚠️ **Acción requerida:** Selecciona una opción para modificar o activa `view: True` para consultar.'
             });
         }
 
-        // 3. Lógica de VISUALIZACIÓN
+        // 2. Lógica de Visualización (Dashboard)
         if (isViewMode) {
             const config = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
 
             if (!config) {
-                return interaction.reply({ content: '❌ Este servidor aún no tiene una base de datos inicializada.', ephemeral: true });
+                return interaction.editReply({ content: '❌ **Error:** No se encontró registro de este servidor en la base de datos.' });
             }
 
-            const viewEmbed = new EmbedBuilder()
-                .setTitle(`⚙️ Configuración Global: ${interaction.guild.name}`)
-                .setThumbnail(interaction.guild.iconURL())
-                .setColor('#5865F2')
-                .addFields(
-                    { name: '👋 Canal de Bienvenida', value: config.welcome_channel ? `<#${config.welcome_channel}>` : '`No configurado`', inline: true },
-                    { name: '📜 Logs de Transcripts', value: config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : '`No configurado`', inline: true },
-                    { name: '🛡️ Rol de Staff', value: config.staff_role ? `<@&${config.staff_role}>` : '`No configurado`', inline: true }
-                )
-                .addFields(
-                    { name: '📝 Mensaje del Panel', value: config.ticket_embed_msg ? `Personalizado` : '`Default`', inline: true },
-                    { name: '🖼️ Imagen del Panel', value: config.ticket_embed_image ? '[Ver Enlace]' : '`Sin Imagen`', inline: true }
-                )
-                .setFooter({ text: 'Usa los parámetros de /settings para modificar valores individuales.' });
+            const statusEmoji = (val) => val ? '✅' : '❌';
+            const statusText = (val) => val ? '`ACTIVO`' : '`PENDIENTE`';
 
-            return interaction.reply({ embeds: [viewEmbed], ephemeral: true });
+            const dashboardEmbed = new EmbedBuilder()
+                .setTitle(`🛠️ Panel de Configuración | ${interaction.guild.name}`)
+                .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+                .setColor('#5865F2')
+                .setDescription(`>>> **Estado global del sistema.**\nA continuación se detallan los módulos configurados para este servidor.`)
+                .addFields(
+                    { 
+                        name: '📢 Módulos de Comunicación', 
+                        value: `${statusEmoji(config.welcome_channel)} **Bienvenida:** ${config.welcome_channel ? `<#${config.welcome_channel}>` : statusText(false)}`, 
+                        inline: false 
+                    },
+                    { 
+                        name: '🛡️ Seguridad & Tickets', 
+                        value: `${statusEmoji(config.staff_role)} **Rol Staff:** ${config.staff_role ? `<@&${config.staff_role}>` : statusText(false)}\n${statusEmoji(config.ticket_log_channel)} **Logs:** ${config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : statusText(false)}`, 
+                        inline: false 
+                    },
+                    { 
+                        name: '🎨 Personalización del Panel', 
+                        value: `📝 **Mensaje:** \`${config.ticket_embed_msg ? 'Personalizado' : 'Default'}\`\n🖼️ **Imagen:** \`${config.ticket_embed_image ? 'Establecida' : 'Sin imagen'}\``, 
+                        inline: false 
+                    }
+                )
+                .setFooter({ text: 'Use /settings con parámetros para actualizar valores.', iconURL: interaction.client.user.displayAvatarURL() })
+                .setTimestamp();
+
+            return interaction.editReply({ embeds: [dashboardEmbed] });
         }
 
-        // 4. Lógica de ACTUALIZACIÓN (Solo si no es modo vista)
+        // 3. Lógica de Actualización Dinámica
         db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)').run(guildId);
 
+        let changes = [];
         if (welcomeChannel) {
             db.prepare('UPDATE guild_settings SET welcome_channel = ? WHERE guild_id = ?').run(welcomeChannel.id, guildId);
+            changes.push(`- **Bienvenida:** → ${welcomeChannel}`);
         }
         if (ticketLogs) {
             db.prepare('UPDATE guild_settings SET ticket_log_channel = ? WHERE guild_id = ?').run(ticketLogs.id, guildId);
+            changes.push(`- **Logs de Tickets:** → ${ticketLogs}`);
         }
         if (staffRole) {
             db.prepare('UPDATE guild_settings SET staff_role = ? WHERE guild_id = ?').run(staffRole.id, guildId);
+            changes.push(`- **Rol de Staff:** → ${staffRole}`);
         }
 
         const successEmbed = new EmbedBuilder()
-            .setTitle('✅ Ajustes Guardados')
-            .setDescription('La configuración se ha actualizado correctamente para este servidor.')
+            .setTitle('✅ Sincronización Exitosa')
+            .setDescription(`Se han aplicado los siguientes cambios en la configuración:\n\n${changes.join('\n')}`)
             .setColor('#2ECC71')
-            .setTimestamp();
+            .setThumbnail('https://cdn-icons-png.flaticon.com/512/190/190411.png') // Icono de check profesional
+            .setFooter({ text: 'Los cambios surten efecto de manera inmediata.' });
 
-        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+        await interaction.editReply({ embeds: [successEmbed] });
     },
 };
