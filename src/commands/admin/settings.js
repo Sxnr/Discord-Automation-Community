@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const db = require('../../database/db');
 
 module.exports = {
@@ -10,22 +10,24 @@ module.exports = {
         // Grupo: Canales
         .addChannelOption(opt => opt.setName('welcome_channel').setDescription('👋 Canal para los mensajes de bienvenida.'))
         .addChannelOption(opt => opt.setName('ticket_logs').setDescription('📜 Canal para los respaldos (transcripts) de tickets.'))
+        .addChannelOption(opt => opt.setName('audit_logs').setDescription('🛡️ Canal para logs de auditoría (mensajes borrados/editados).'))
         // Grupo: Roles
         .addRoleOption(opt => opt.setName('staff_role').setDescription('🛡️ Rol asignado para la gestión de tickets.'))
         // Grupo: Sistema
         .addBooleanOption(opt => opt.setName('view').setDescription('🔍 Visualiza el estado actual de la configuración.')),
 
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         const guildId = interaction.guild.id;
 
         const welcomeChannel = interaction.options.getChannel('welcome_channel');
         const ticketLogs = interaction.options.getChannel('ticket_logs');
+        const auditLogs = interaction.options.getChannel('audit_logs');
         const staffRole = interaction.options.getRole('staff_role');
         const isViewMode = interaction.options.getBoolean('view');
 
         // 1. Cláusula de Guardia: Si no hay parámetros
-        if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole) {
+        if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole && !auditLogs) {
             return interaction.editReply({
                 content: '⚠️ **Acción requerida:** Selecciona una opción para modificar o activa `view: True` para consultar.'
             });
@@ -54,8 +56,8 @@ module.exports = {
                         inline: false 
                     },
                     { 
-                        name: '🛡️ Seguridad & Tickets', 
-                        value: `${statusEmoji(config.staff_role)} **Rol Staff:** ${config.staff_role ? `<@&${config.staff_role}>` : statusText(false)}\n${statusEmoji(config.ticket_log_channel)} **Logs:** ${config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : statusText(false)}`, 
+                        name: '🛡️ Seguridad & Auditoría', 
+                        value: `${statusEmoji(config.staff_role)} **Rol Staff:** ${config.staff_role ? `<@&${config.staff_role}>` : statusText(false)}\n${statusEmoji(config.ticket_log_channel)} **Logs Tickets:** ${config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : statusText(false)}\n${statusEmoji(config.audit_log_channel)} **Auditoría:** ${config.audit_log_channel ? `<#${config.audit_log_channel}>` : statusText(false)}`, 
                         inline: false 
                     },
                     { 
@@ -82,6 +84,10 @@ module.exports = {
             db.prepare('UPDATE guild_settings SET ticket_log_channel = ? WHERE guild_id = ?').run(ticketLogs.id, guildId);
             changes.push(`- **Logs de Tickets:** → ${ticketLogs}`);
         }
+        if (auditLogs) {
+            db.prepare('UPDATE guild_settings SET audit_log_channel = ? WHERE guild_id = ?').run(auditLogs.id, guildId);
+            changes.push(`- **Auditoría:** → ${auditLogs}`);
+        }
         if (staffRole) {
             db.prepare('UPDATE guild_settings SET staff_role = ? WHERE guild_id = ?').run(staffRole.id, guildId);
             changes.push(`- **Rol de Staff:** → ${staffRole}`);
@@ -91,7 +97,7 @@ module.exports = {
             .setTitle('✅ Sincronización Exitosa')
             .setDescription(`Se han aplicado los siguientes cambios en la configuración:\n\n${changes.join('\n')}`)
             .setColor('#2ECC71')
-            .setThumbnail('https://cdn-icons-png.flaticon.com/512/190/190411.png') // Icono de check profesional
+            .setThumbnail('https://cdn-icons-png.flaticon.com/512/190/190411.png') 
             .setFooter({ text: 'Los cambios surten efecto de manera inmediata.' });
 
         await interaction.editReply({ embeds: [successEmbed] });
