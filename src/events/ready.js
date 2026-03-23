@@ -1,4 +1,5 @@
 const { Events, ActivityType } = require('discord.js');
+const { checkGiveaways } = require('../utils/giveawayManager.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -33,9 +34,18 @@ module.exports = {
                 activities: [activity],
                 status: 'online',
             });
-            
+
             // Incrementamos o reiniciamos el índice
             i = (i + 1) % activities.length;
         }, 15000); // Cambio cada 15 segundos
+
+        // --- GESTOR DE SORTEOS (ALTA FRECUENCIA) ---
+        // Ejecución inicial al arrancar
+        checkGiveaways(client);
+
+        // Cambiado de 10000ms (10s) a 1000ms (1s) para detección inmediata
+        setInterval(() => {
+            checkGiveaways(client);
+        }, 1000);
     }
 };

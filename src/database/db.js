@@ -16,6 +16,20 @@ db.prepare(`
     )
 `).run();
 
+// 2. TABLA DE SORTEOS (Esto es lo que el código del Canvas necesita)
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS giveaways (
+        message_id TEXT PRIMARY KEY,
+        guild_id TEXT,
+        channel_id TEXT,
+        prize TEXT,
+        winner_count INTEGER,
+        end_time INTEGER,
+        participants TEXT, -- Se guarda como un string JSON (array de IDs)
+        ended INTEGER DEFAULT 0
+    )
+`).run();
+
 // 2. MIGRACIÓN MANUAL: Intentar añadir la columna nueva si no existe
 try {
     db.prepare("ALTER TABLE guild_settings ADD COLUMN ticket_dm_preference INTEGER DEFAULT 1").run();
