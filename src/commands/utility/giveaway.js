@@ -108,5 +108,31 @@ module.exports = {
 
             return interaction.reply({ content: '✅ Se ha ejecutado el reroll correctamente.', flags: [MessageFlags.Ephemeral] });
         }
+
+        // --- LOGICA: LISTAR (LIST) ---
+        if (sub === 'list') {
+            const activeGiveaways = db.prepare('SELECT * FROM giveaways WHERE guild_id = ? AND ended = 0').all(interaction.guild.id);
+
+            if (activeGiveaways.length === 0) {
+                return interaction.reply({ content: '📂 No hay sorteos activos en este servidor en este momento.', flags: [MessageFlags.Ephemeral]});
+            
+            }
+
+            const listEmbed = new EmbedBuilder()
+                .setTitle('📋 Sorteos Activos')
+                .setColor('#F1C40F')
+                .setDescription(
+                    activeGiveaways.map((g, index) => 
+                        `**${index + 1}. ${g.prize}**\n` +
+                        `> 🆔 ID: \`${g.message_id}\`\n` +
+                        `> 📍 Canal: <#${g.channel_id}>\n` +
+                        `> ⏳ Termina: <t:${Math.floor(g.end_time / 1000)}:R>`
+                    ).join('\n\n')
+                )
+                .setFooter({ text: 'Usa el ID para finalizar o relanzar un sorteo.' })
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [listEmbed], flags: [MessageFlags.Ephemeral] });
+        }
     }
 };
