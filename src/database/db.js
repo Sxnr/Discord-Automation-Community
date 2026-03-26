@@ -3,41 +3,37 @@ const path = require('node:path');
 
 const db = new Database(path.join(__dirname, 'database.sqlite'));
 
-// 1. Crear la tabla base si no existe
+// Tabla base con TODAS las columnas
 db.prepare(`
     CREATE TABLE IF NOT EXISTS guild_settings (
-        guild_id TEXT PRIMARY KEY,
-        welcome_channel TEXT,
-        staff_role TEXT,
-        ticket_log_channel TEXT,
-        ticket_embed_msg TEXT,
-        ticket_embed_image TEXT,
-        ticket_welcome_msg TEXT
+        guild_id            TEXT PRIMARY KEY,
+        welcome_channel     TEXT,
+        staff_role          TEXT,
+        prefix              TEXT DEFAULT '/',
+        ticket_log_channel  TEXT,
+        ticket_embed_msg    TEXT,
+        ticket_embed_image  TEXT,
+        ticket_welcome_msg  TEXT,
+        audit_log_channel   TEXT,
+        general_log_channel TEXT
     )
 `).run();
 
-// 2. TABLA DE SORTEOS (Esto es lo que el código del Canvas necesita)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS giveaways (
-        message_id TEXT PRIMARY KEY,
-        guild_id TEXT,
-        channel_id TEXT,
-        prize TEXT,
-        winner_count INTEGER,
-        end_time INTEGER,
-        participants TEXT, -- Se guarda como un string JSON (array de IDs)
-        ended INTEGER DEFAULT 0
-    )
-`).run();
+// Migración automática: agrega columnas faltantes sin borrar datos
+const existingColumns = db.prepare("PRAGMA table_info(guild_settings)").all().map(c => c.name);
+const requiredColumns = {
+    ticket_log_channel:  'TEXT',
+    ticket_embed_msg:    'TEXT',
+    ticket_embed_image:  'TEXT',
+    ticket_welcome_msg:  'TEXT',
+    audit_log_channel:   'TEXT',
+    general_log_channel: 'TEXT'
+};
 
-// 2. MIGRACIÓN MANUAL: Intentar añadir la columna nueva si no existe
-try {
-    db.prepare("ALTER TABLE guild_settings ADD COLUMN ticket_dm_preference INTEGER DEFAULT 1").run();
-    console.log("✅ Columna 'ticket_dm_preference' añadida correctamente.");
-} catch (error) {
-    // Si el error es porque la columna ya existe, simplemente lo ignoramos
-    if (!error.message.includes("duplicate column name")) {
-        console.error("Error en migración:", error);
+for (const [col, type] of Object.entries(requiredColumns)) {
+    if (!existingColumns.includes(col)) {
+        db.prepare(`ALTER TABLE guild_settings ADD COLUMN ${col} ${type}`).run();
+        console.log(`[DB] Columna migrada: ${col}`);
     }
 }
 
