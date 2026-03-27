@@ -183,6 +183,33 @@ db.prepare(`
     )
 `).run();
 
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS trivia_questions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT,
+        question    TEXT NOT NULL,
+        answer      TEXT NOT NULL,
+        options     TEXT NOT NULL,
+        category    TEXT DEFAULT 'Custom',
+        difficulty  TEXT DEFAULT 'medium',
+        global      INTEGER DEFAULT 0
+    )
+`).run();
+
+// Migración: trivia_stats por usuario
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS trivia_stats (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        correct    INTEGER DEFAULT 0,
+        wrong      INTEGER DEFAULT 0,
+        streak     INTEGER DEFAULT 0,
+        best_streak INTEGER DEFAULT 0,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
 // ── Migración: guild_settings ──────────────────────────────────────────────
 const existingColumns = db.prepare("PRAGMA table_info(guild_settings)").all().map(c => c.name);
 const requiredColumns = {
