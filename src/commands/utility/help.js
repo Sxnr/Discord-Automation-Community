@@ -11,13 +11,15 @@ module.exports = {
 
     async execute(interaction) {
         const { client } = interaction;
-        const commands    = client.commands;
+        const commands = client.commands;
 
         const totalCommands = commands.size;
-        const adminCount    = commands.filter(cmd => cmd.category === 'admin').size;
-        const utilityCount  = commands.filter(cmd => cmd.category === 'utility').size;
-        const guildIcon     = interaction.guild.iconURL({ dynamic: true });
-        const botAvatar     = client.user.displayAvatarURL();
+        const adminCount = commands.filter(cmd => cmd.category === 'admin').size;
+        const utilityCount = commands.filter(cmd => cmd.category === 'utility').size;
+        const economyCount = commands.filter(cmd => cmd.category === 'economy').size;
+        const funCount = commands.filter(cmd => cmd.category === 'fun').size;
+        const guildIcon = interaction.guild.iconURL({ dynamic: true });
+        const botAvatar = client.user.displayAvatarURL();
 
         const helpMainEmbed = new EmbedBuilder()
             .setTitle(`${client.user.username} • Centro de Comandos`)
@@ -35,8 +37,10 @@ module.exports = {
                     value:
                         `\`\`\`\n` +
                         `📦 Comandos totales  →  ${totalCommands}\n` +
-                        `🛡️ Administración    →  ${adminCount}\n` +
+                        `🛡️ Administración     →  ${adminCount}\n` +
                         `🛠️ Utilidad          →  ${utilityCount}\n` +
+                        `💰 Economía          →  ${economyCount}\n` +
+                        `🎮 Diversión         →  ${funCount}\n` +
                         `\`\`\``,
                     inline: false
                 },
@@ -51,24 +55,33 @@ module.exports = {
                     inline: true
                 },
                 {
+                    name: '💰 Economía',
+                    value: `Balance, daily, trabajo, tienda, inventario, transferencias y más.\n> \`${economyCount} comandos\``,
+                    inline: true
+                },
+                {
+                    name: '🎮 Diversión',
+                    value: `Trivia, mascotas, perfiles y juegos interactivos.\n> \`${funCount} comandos\``,
+                    inline: true
+                },
+                {
                     name: '⚡ Accesos Rápidos',
                     value:
                         `> \`/settings\` — Configuración del servidor\n` +
                         `> \`/setup-tickets\` — Sistema de tickets\n` +
+                        `> \`/economy balance\` — Ver tu saldo\n` +
+                        `> \`/economy daily\` — Recompensa diaria\n` +
+                        `> \`/trivia play\` — Jugar trivia\n` +
+                        `> \`/pet status\` — Ver tu mascota\n` +
+                        `> \`/profile view\` — Tu perfil\n` +
                         `> \`/giveaway start\` — Iniciar un sorteo\n` +
-                        `> \`/automod status\` — Estado del automod\n` +
-                        `> \`/automod config\` — Configurar automod\n` +
-                        `> \`/warn add\` — Advertir a un usuario\n` +
-                        `> \`/warn list\` — Ver historial de warns\n` +
-                        `> \`/mod ban\` — Banear usuario\n` +
-                        `> \`/mod mute\` — Silenciar usuario\n` +
-                        `> \`/mod history\` — Historial de moderación`,
+                        `> \`/automod status\` — Estado del automod`,
                     inline: false
                 }
             )
             .setImage('https://media.discordapp.net/attachments/1380335501776654357/1487156050288312330/Floppa_GIF_-_Floppa_-_Discover__Share_GIFs.gif?ex=69c81d80&is=69c6cc00&hm=3038db4586311e89424f249f06ddc2ed1cf3e1ecb74bb57d20526feefb2a725d&=')
             .setFooter({
-                text: `${interaction.guild.name}  •  ${totalCommands} comandos disponibles`,
+                text: `${interaction.guild.name} • ${totalCommands} comandos disponibles`,
                 iconURL: guildIcon
             })
             .setTimestamp();
@@ -78,25 +91,37 @@ module.exports = {
             .setPlaceholder('📂 Selecciona una categoría...')
             .addOptions([
                 {
-                    label:       'Administración',
+                    label: 'Administración',
                     description: `Tickets, warns, baneos, mutes, automod y más. ${adminCount} comandos.`,
-                    value:       'admin',
-                    emoji:       '🛡️',
+                    value: 'admin',
+                    emoji: '🛡️',
                 },
                 {
-                    label:       'Utilidad',
+                    label: 'Utilidad',
                     description: `Diagnóstico, estado y asistencia general. ${utilityCount} comandos.`,
-                    value:       'utility',
-                    emoji:       '🛠️',
+                    value: 'utility',
+                    emoji: '🛠️',
+                },
+                {
+                    label: 'Economía',
+                    description: `Balance, daily, trabajo, tienda, inventario y transferencias. ${economyCount} comandos.`,
+                    value: 'economy',
+                    emoji: '💰',
+                },
+                {
+                    label: 'Diversión',
+                    description: `Trivia, mascotas, perfiles y juegos. ${funCount} comandos.`,
+                    value: 'fun',
+                    emoji: '🎮',
                 },
             ]);
 
         const row = new ActionRowBuilder().addComponents(menu);
 
         await interaction.reply({
-            embeds:     [helpMainEmbed],
+            embeds: [helpMainEmbed],
             components: [row],
-            flags:      [MessageFlags.Ephemeral]
+            flags: [MessageFlags.Ephemeral]
         });
     },
 };
