@@ -863,6 +863,52 @@ module.exports = {
                     }
                 }
 
+                // ── Pet buttons (feed/play/sleep desde /pet status) ───────────────────────
+                if (interaction.customId.startsWith('pet_feed_') ||
+                    interaction.customId.startsWith('pet_play_') ||
+                    interaction.customId.startsWith('pet_sleep_')) {
+
+                    const parts = interaction.customId.split('_');
+                    const action = parts[1];   // feed | play | sleep
+                    const owner = parts[2];
+
+                    if (interaction.user.id !== owner) {
+                        return interaction.reply({ content: '❌ Esta mascota no es tuya.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    // Redirigir al subcommand correspondiente simulando la interacción
+                    interaction.options = { getSubcommand: () => action, getUser: () => null };
+                    return require('../commands/economy/pet').execute(interaction);
+                }
+
+                // ── Pet release confirm/cancel ─────────────────────────────────────────────
+                if (interaction.customId.startsWith('pet_release_')) {
+                    const parts = interaction.customId.split('_');
+                    const action = parts[2];   // confirm | cancel
+                    const owner = parts[3];
+
+                    if (interaction.user.id !== owner) {
+                        return interaction.reply({ content: '❌ Este botón no es tuyo.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    if (action === 'cancel') {
+                        return interaction.update({
+                            embeds: [new EmbedBuilder().setColor('#57F287').setDescription('✅ Cancelado. Tu mascota sigue contigo.')],
+                            components: []
+                        });
+                    }
+
+                    if (action === 'confirm') {
+                        const pet = db.prepare('SELECT * FROM pets WHERE guild_id = ? AND user_id = ?').get(interaction.guild.id, owner);
+                        db.prepare('DELETE FROM pets WHERE guild_id = ? AND user_id = ?').run(interaction.guild.id, owner);
+                        return interaction.update({
+                            embeds: [new EmbedBuilder().setColor('#ED4245')
+                                .setDescription(`💔 **${pet?.emoji || '🐾'} ${pet?.name || 'Tu mascota'}** fue soltada. Adiós...`)],
+                            components: []
+                        });
+                    }
+                }
+
             } catch (error) {
                 console.error('❌ Error en interacción:', error);
                 const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
