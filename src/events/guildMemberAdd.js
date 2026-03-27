@@ -1,105 +1,129 @@
 const { Events, AttachmentBuilder, EmbedBuilder } = require('discord.js');
-const { createCanvas, loadImage, registerFont } = require('canvas');
+const { createCanvas, loadImage } = require('canvas');
 const db = require('../database/db');
-const path = require('node:path');
 
 module.exports = {
     name: Events.GuildMemberAdd,
     async execute(member) {
         const { guild } = member;
 
-        // 1. Consultar configuración en la DB
-        const settings = db.prepare('SELECT welcome_channel, ticket_welcome_msg, ticket_embed_image FROM guild_settings WHERE guild_id = ?').get(guild.id);
+        const settings = db.prepare(`
+            SELECT welcome_channel, welcome_message, welcome_background,
+                   welcome_color, welcome_role, welcome_enabled
+            FROM guild_settings WHERE guild_id = ?
+        `).get(guild.id);
 
-        if (!settings || !settings.welcome_channel) return;
+        if (!settings?.welcome_channel || settings.welcome_enabled === 0) return;
 
         const channel = guild.channels.cache.get(settings.welcome_channel);
         if (!channel) return;
 
         try {
-            // --- INGENIERÍA DE IMAGEN (CANVAS) ---
+            // ── CANVAS ────────────────────────────────────────────────────
             const canvas = createCanvas(1024, 450);
-            const ctx = canvas.getContext('2d');
+            const ctx    = canvas.getContext('2d');
 
-            // 1. Fondo (Si no hay imagen en la DB, usamos un degradado profesional)
-            if (settings.ticket_embed_image && settings.ticket_embed_image.startsWith('http')) {
-                const background = await loadImage(settings.ticket_embed_image).catch(() => null);
-                if (background) {
-                    ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
-                } else {
-                    drawDefaultBackground(ctx, canvas);
-                }
+            // Fondo
+            if (settings.welcome_background?.startsWith('http')) {
+                const bg = await loadImage(settings.welcome_background).catch(() => null);
+                if (bg) ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+                else     drawDefaultBackground(ctx, canvas);
             } else {
                 drawDefaultBackground(ctx, canvas);
             }
 
-            // 2. Capa de oscurecimiento (Overlay) para legibilidad
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            // Overlay de oscurecimiento
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 3. Círculo del Avatar
+            // Borde decorativo
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth   = 3;
+            ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
+
+            // Avatar circular con borde
+            const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
+            const avatar    = await loadImage(avatarUrl);
+
             ctx.save();
             ctx.beginPath();
-            ctx.arc(512, 140, 100, 0, Math.PI * 2, true);
+            ctx.arc(512, 145, 105, 0, Math.PI * 2);
             ctx.closePath();
             ctx.clip();
-
-            const avatar = await loadImage(member.user.displayAvatarURL({ extension: 'png', size: 256 }));
-            ctx.drawImage(avatar, 412, 40, 200, 200);
+            ctx.drawImage(avatar, 407, 40, 210, 210);
             ctx.restore();
 
-            // 4. Texto: Nombre del Usuario
-            ctx.font = 'bold 50px sans-serif';
-            ctx.fillStyle = '#FFFFFF';
-            ctx.textAlign = 'center';
-            ctx.fillText(member.user.username.toUpperCase(), 512, 300);
+            // Borde del avatar
+            ctx.beginPath();
+            ctx.arc(512, 145, 107, 0, Math.PI * 2);
+            ctx.strokeStyle = settings.welcome_color || '#5865F2';
+            ctx.lineWidth   = 5;
+            ctx.stroke();
 
-            // 5. Texto: Bienvenida
-            ctx.font = '30px sans-serif';
+            // Nombre de usuario
+            ctx.font        = 'bold 52px sans-serif';
+            ctx.fillStyle   = '#FFFFFF';
+            ctx.textAlign   = 'center';
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur  = 10;
+            ctx.fillText(member.user.username.toUpperCase(), 512, 305);
+
+            // Servidor
+            ctx.font      = '28px sans-serif';
             ctx.fillStyle = '#BDC3C7';
-            ctx.fillText(`BIENVENIDO A ${guild.name.toUpperCase()}`, 512, 350);
+            ctx.shadowBlur = 6;
+            ctx.fillText(`BIENVENIDO A ${guild.name.toUpperCase()}`, 512, 355);
 
-            // 6. Texto: Contador
-            ctx.font = '25px sans-serif';
-            ctx.fillStyle = '#F1C40F';
+            // Contador de miembros
+            ctx.font      = '22px sans-serif';
+            ctx.fillStyle = settings.welcome_color || '#5865F2';
+            ctx.shadowBlur = 4;
             ctx.fillText(`MIEMBRO #${guild.memberCount}`, 512, 400);
 
-            // Preparar el archivo
+            ctx.shadowBlur = 0;
+
             const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: `welcome-${member.id}.png` });
 
-            // 2. Sistema de Mensaje (Embed + Imagen)
-            const renderedMessage = (settings.ticket_welcome_msg || '¡Bienvenido {user}!')
-                .replace('{user}', member.toString())
-                .replace('{server}', guild.name);
+            // ── EMBED ─────────────────────────────────────────────────────
+            const renderedMsg = (settings.welcome_message || '¡Bienvenido {user} a {server}!')
+                .replace('{user}',   member.toString())
+                .replace('{server}', guild.name)
+                .replace('{count}',  guild.memberCount);
 
-            const welcomeEmbed = new EmbedBuilder()
-                .setTitle('✨ ¡Nueva Incorporación! ✨')
-                .setDescription(`>>> ${renderedMessage}`)
-                .setColor('#5865F2')
+            const embed = new EmbedBuilder()
+                .setTitle('✨ ¡Nueva Incorporación!')
+                .setDescription(`>>> ${renderedMsg}`)
+                .setColor(settings.welcome_color || '#5865F2')
                 .setImage(`attachment://welcome-${member.id}.png`)
-                .setFooter({ text: `Cluster Global • Sincronizado` })
+                .setFooter({ text: `${guild.name} • Miembro #${guild.memberCount}` })
                 .setTimestamp();
 
-            await channel.send({ embeds: [welcomeEmbed], files: [attachment] });
+            // Mencionar rol si está configurado
+            const content = settings.welcome_role ? `<@&${settings.welcome_role}>` : null;
+
+            await channel.send({ content, embeds: [embed], files: [attachment] });
 
         } catch (error) {
-            console.error(`❌ Error generando imagen de bienvenida:`, error);
+            console.error('❌ Error en bienvenida:', error);
         }
-    },
+    }
 };
 
-// Función auxiliar para degradado de fondo
 function drawDefaultBackground(ctx, canvas) {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, '#2C3E50');
-    gradient.addColorStop(1, '#000000');
+    gradient.addColorStop(0, '#1a1a2e');
+    gradient.addColorStop(0.5, '#16213e');
+    gradient.addColorStop(1, '#0f3460');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Dibujamos unos detalles geométricos sutiles
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 2;
-    for(let i = 0; i < canvas.width; i += 50) {
+
+    // Líneas decorativas
+    ctx.strokeStyle = 'rgba(88, 101, 242, 0.15)';
+    ctx.lineWidth   = 1;
+    for (let i = 0; i < canvas.width; i += 60) {
         ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+    }
+    for (let i = 0; i < canvas.height; i += 60) {
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
     }
 }
