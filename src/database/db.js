@@ -3,7 +3,6 @@ const path = require('node:path');
 
 const db = new Database(path.join(__dirname, 'database.sqlite'));
 
-// Tabla: configuración del servidor
 db.prepare(`
     CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id             TEXT PRIMARY KEY,
@@ -34,7 +33,6 @@ db.prepare(`
     )
 `).run();
 
-// Tabla: sorteos
 db.prepare(`
     CREATE TABLE IF NOT EXISTS giveaways (
         message_id    TEXT PRIMARY KEY,
@@ -51,7 +49,6 @@ db.prepare(`
     )
 `).run();
 
-// Tabla: advertencias
 db.prepare(`
     CREATE TABLE IF NOT EXISTS warns (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +60,6 @@ db.prepare(`
     )
 `).run();
 
-// Tabla: logs de moderación
 db.prepare(`
     CREATE TABLE IF NOT EXISTS mod_logs (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +74,6 @@ db.prepare(`
     )
 `).run();
 
-// Tabla: niveles y XP
 db.prepare(`
     CREATE TABLE IF NOT EXISTS levels (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,6 +84,23 @@ db.prepare(`
         messages   INTEGER DEFAULT 0,
         last_xp    INTEGER DEFAULT 0,
         UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ➕ Tabla: sugerencias
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS suggestions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
+        message_id  TEXT,
+        author_id   TEXT NOT NULL,
+        content     TEXT NOT NULL,
+        status      TEXT DEFAULT 'pending',
+        reason      TEXT,
+        votes_up    TEXT DEFAULT '[]',
+        votes_down  TEXT DEFAULT '[]',
+        timestamp   INTEGER NOT NULL
     )
 `).run();
 
@@ -116,7 +128,6 @@ const requiredColumns = {
     warn_mute_threshold:   'INTEGER DEFAULT 3',
     warn_ban_threshold:    'INTEGER DEFAULT 5',
     warn_mute_duration:    'INTEGER DEFAULT 3600000',
-    // ➕ XP
     xp_enabled:            'INTEGER DEFAULT 1',
     xp_channel:            'TEXT',
     xp_ignored_channels:   "TEXT DEFAULT '[]'",
@@ -126,7 +137,10 @@ const requiredColumns = {
     xp_multiplier:         'REAL DEFAULT 1.0',
     xp_level_roles:        "TEXT DEFAULT '{}'",
     xp_levelup_msg:        "TEXT DEFAULT '¡Felicitaciones {user}! 🎊 Has alcanzado el nivel **{level}**'",
-    xp_levelup_img:        'TEXT'
+    xp_levelup_img:        'TEXT',
+    // ➕ Sugerencias
+    suggest_channel:       'TEXT',
+    suggest_log_channel:   'TEXT'
 };
 
 for (const [col, type] of Object.entries(requiredColumns)) {
