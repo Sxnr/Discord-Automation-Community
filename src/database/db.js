@@ -90,6 +90,41 @@ for (const [col, type] of Object.entries(requiredModLogColumns)) {
     }
 }
 
+// ➕ Agregar después de la tabla mod_logs:
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS levels (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        xp         INTEGER DEFAULT 0,
+        level      INTEGER DEFAULT 0,
+        messages   INTEGER DEFAULT 0,
+        last_xp    INTEGER DEFAULT 0,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ➕ Agregar columnas de config de XP en guild_settings
+const xpColumns = {
+    xp_enabled:           'INTEGER DEFAULT 1',
+    xp_channel:           'TEXT',
+    xp_ignored_channels:  "TEXT DEFAULT '[]'",
+    xp_min:               'INTEGER DEFAULT 15',
+    xp_max:               'INTEGER DEFAULT 25',
+    xp_cooldown:          'INTEGER DEFAULT 60',
+    xp_multiplier:        'REAL DEFAULT 1.0',
+    xp_level_roles:       "TEXT DEFAULT '{}'",
+    xp_levelup_msg:       "TEXT DEFAULT '¡Felicitaciones {user}! 🎊 Has alcanzado el nivel **{level}**'", // ➕
+    xp_levelup_img:       'TEXT'  // ➕ imagen/gif del embed de subida de nivel
+};
+
+for (const [col, type] of Object.entries(xpColumns)) {
+    if (!existingColumns.includes(col)) {
+        db.prepare(`ALTER TABLE guild_settings ADD COLUMN ${col} ${type}`).run();
+        console.log(`[DB] Columna migrada (guild_settings): ${col}`);
+    }
+}
+
 // Migración automática guild_settings
 const existingColumns = db.prepare("PRAGMA table_info(guild_settings)").all().map(c => c.name);
 const requiredColumns = {
