@@ -821,6 +821,12 @@ module.exports = {
                         .setFooter({ text: interaction.user.tag })
                         .setTimestamp();
 
+                    if (isRight) {
+                        const triviaStats = db.prepare('SELECT correct, streak FROM trivia_stats WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
+                        checkAndUnlock(guildId, userId, 'trivia_correct', triviaStats?.correct || 1, interaction.client);
+                        checkAndUnlock(guildId, userId, 'trivia_streak', triviaStats?.streak || 1, interaction.client);
+                    }
+
                     return interaction.update({ embeds: [embed], components: [] });
                 }
 
