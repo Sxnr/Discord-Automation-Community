@@ -1,12 +1,11 @@
 const { Events, ActivityType } = require('discord.js');
-const { checkGiveaways } = require('../utils/giveawayManager.js');
+const { checkGiveaways, updateParticipantCounts } = require('../utils/giveawayManager.js');
 
 module.exports = {
     name: Events.ClientReady,
     once: true,
     execute(client) {
-        // 1. Reporte Técnico de Inicialización en Consola
-        const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+        const totalUsers  = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
         const totalGuilds = client.guilds.cache.size;
 
         console.log(`\n=================================================`);
@@ -19,33 +18,37 @@ module.exports = {
         console.log(`🗄️ Base de Datos: Sincronizada (SQLite3)`);
         console.log(`=================================================\n`);
 
-        // 2. Sistema de Actividad Dinámica (Rotación cada 15 segundos)
-        const activities = [
-            { name: `${totalGuilds} servidores 🛡️`, type: ActivityType.Watching },
-            { name: `/help para asistencia 📂`, type: ActivityType.Listening },
-            { name: `${totalUsers} usuarios activos ✨`, type: ActivityType.Watching },
-            { name: `Soporte Técnico Profesional 🎫`, type: ActivityType.Playing }
-        ];
+        // --- GESTOR DE SORTEOS ---
+        checkGiveaways(client);
+        setInterval(() => checkGiveaways(client), 10000);
+        setInterval(() => updateParticipantCounts(client), 60000);
+
+        // --- STATUS ROTATIVO CON DATOS EN VIVO ---
+        const getActivities = () => {
+            const guilds  = client.guilds.cache.size;
+            const users   = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
+            const cmds    = client.commands.size;
+
+            return [
+                { name: `${guilds} servidor${guilds !== 1 ? 'es' : ''} 🛡️`,    type: ActivityType.Watching  },
+                { name: `/help para asistencia 📂`,                              type: ActivityType.Listening },
+                { name: `${users} usuario${users !== 1 ? 's' : ''} activos ✨`, type: ActivityType.Watching  },
+                { name: `${cmds} comandos disponibles 🚀`,                       type: ActivityType.Listening },
+                { name: `Soporte Técnico Profesional 🎫`,                        type: ActivityType.Playing   },
+            ];
+        };
 
         let i = 0;
-        setInterval(() => {
-            const activity = activities[i];
+        const rotateStatus = () => {
+            const activities = getActivities(); // datos frescos en cada rotación
             client.user.setPresence({
-                activities: [activity],
+                activities: [activities[i % activities.length]],
                 status: 'online',
             });
+            i++;
+        };
 
-            // Incrementamos o reiniciamos el índice
-            i = (i + 1) % activities.length;
-        }, 15000); // Cambio cada 15 segundos
-
-        // --- GESTOR DE SORTEOS (ALTA FRECUENCIA) ---
-        // Ejecución inicial al arrancar
-        checkGiveaways(client);
-
-        // Cambiado de 10000ms (10s) a 1000ms (1s) para detección inmediata
-        setInterval(() => {
-            checkGiveaways(client);
-        }, 1000);
+        rotateStatus();
+        setInterval(rotateStatus, 15000);
     }
 };
