@@ -4,7 +4,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const db = require('../../database/db');
-const { checkAndUnlock } = require('../economy/achievements.js');
+const { checkAndUnlock } = require('../economy/achievements');
 
 // ── Banco local en español ─────────────────────────────────────────────────
 const LOCAL_QUESTIONS = [
