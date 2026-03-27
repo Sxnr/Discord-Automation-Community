@@ -24,6 +24,13 @@ const client = new Client({
 
 client.commands = new Collection();
 
+// --- Eventos manuales que querías conservar ---
+const birthdayChecker = require('./events/birthdayChecker');
+client.once(birthdayChecker.name, (...args) => birthdayChecker.execute(...args, client));
+
+const reminderLoader = require('./events/reminderLoader');
+client.once(reminderLoader.name, (...args) => reminderLoader.execute(...args, client));
+
 // --- HANDLER DE COMANDOS ---
 const commandsPath = path.join(__dirname, 'commands');
 
