@@ -685,6 +685,119 @@ module.exports = {
                     }
                 }
 
+                // ── AHORCADO ──────────────────────────────────────────────────────────────
+                if (interaction.customId.startsWith('hm_letter_')) {
+                    const parts = interaction.customId.split('_');
+                    const gameId = `${parts[2]}_${parts[3]}`;
+                    const letter = parts[4];
+
+                    const { sessions, buildEmbed, buildLetterRows } = require('../commands/fun/hangman');
+                    const state = sessions.get(gameId);
+
+                    if (!state) return interaction.reply({ content: '❌ Esta partida ya no está activa.', flags: [MessageFlags.Ephemeral] });
+                    if (state.userId !== interaction.user.id) return interaction.reply({ content: '❌ Esta no es tu partida.', flags: [MessageFlags.Ephemeral] });
+
+                    state.guessed.push(letter);
+                    if (!state.word.includes(letter)) {
+                        state.failed.push(letter);
+                        state.stage++;
+                    }
+
+                    const isWin = state.word.split('').every(l => state.guessed.includes(l));
+                    const isLose = state.stage >= 6;
+
+                    const embed = buildEmbed(state);
+                    const rows = isWin || isLose
+                        ? []
+                        : buildLetterRows(gameId, state.guessed, state.failed);
+
+                    if (isWin || isLose) sessions.delete(gameId);
+
+                    return interaction.update({ embeds: [embed], components: rows });
+                }
+
+                // ── TICTACTOE ─────────────────────────────────────────────────────────────
+                if (interaction.customId.startsWith('ttt_move_')) {
+                    const parts = interaction.customId.split('_');
+                    const gameId = `${parts[2]}_${parts[3]}`;
+                    const cell = parseInt(parts[4]);
+
+                    const { games, buildBoard, buildEmbed, checkWin } = require('../commands/fun/tictactoe');
+                    const state = games.get(gameId);
+
+                    if (!state) return interaction.reply({ content: '❌ Esta partida ya no está activa.', flags: [MessageFlags.Ephemeral] });
+                    if (interaction.user.id !== state.turn.id) return interaction.reply({ content: '❌ No es tu turno.', flags: [MessageFlags.Ephemeral] });
+                    if (state.board[cell]) return interaction.reply({ content: '❌ Esa celda ya está ocupada.', flags: [MessageFlags.Ephemeral] });
+
+                    const mark = state.marks[interaction.user.id];
+                    state.board[cell] = mark;
+
+                    const isWin = checkWin(state.board, mark);
+                    const isDraw = !isWin && state.board.every(c => c !== null);
+
+                    if (isWin) {
+                        state.winner = interaction.user;
+                        games.delete(gameId);
+                        return interaction.update({
+                            content: `🏆 ¡**${interaction.user.username}** ganó la partida!`,
+                            embeds: [buildEmbed(state, 'win')],
+                            components: buildBoard(gameId, state.board, true)
+                        });
+                    }
+
+                    if (isDraw) {
+                        games.delete(gameId);
+                        return interaction.update({
+                            content: '🤝 ¡Empate!',
+                            embeds: [buildEmbed(state, 'draw')],
+                            components: buildBoard(gameId, state.board, true)
+                        });
+                    }
+
+                    // Cambiar turno
+                    state.turn = state.turn.id === state.p1.id ? state.p2 : state.p1;
+
+                    return interaction.update({
+                        content: `Turno de ${state.turn} ${state.marks[state.turn.id]}`,
+                        embeds: [buildEmbed(state)],
+                        components: buildBoard(gameId, state.board)
+                    });
+                }
+
+                // ── TRIVIA ────────────────────────────────────────────────────────────────
+                if (interaction.customId.startsWith('trivia_ans_')) {
+                    const parts = interaction.customId.split('_');
+                    const sessionId = `${parts[2]}_${parts[3]}`;
+                    const optIdx = parseInt(parts[4]);
+
+                    const { activeSessions } = require('../commands/fun/trivia');
+                    const session = activeSessions.get(sessionId);
+
+                    if (!session) return interaction.reply({ content: '❌ Esta pregunta ya expiró.', flags: [MessageFlags.Ephemeral] });
+                    if (session.userId !== interaction.user.id) return interaction.reply({ content: '❌ Esta no es tu pregunta.', flags: [MessageFlags.Ephemeral] });
+                    if (session.answered) return interaction.reply({ content: '⚠️ Ya respondiste esta pregunta.', flags: [MessageFlags.Ephemeral] });
+
+                    session.answered = true;
+                    activeSessions.delete(sessionId);
+
+                    const chosen = session.shuffled[optIdx];
+                    const isRight = chosen === session.answer;
+                    const timeTaken = ((Date.now() - session.startTime) / 1000).toFixed(1);
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(`${session.question.cat} — Trivia`)
+                        .setColor(isRight ? '#57F287' : '#ED4245')
+                        .setDescription(`## ${session.question.q}\n\n${isRight ? '✅ **¡Correcto!**' : `❌ **Incorrecto.** La respuesta era: **${session.answer}**`}`)
+                        .addFields(
+                            { name: '🎯 Tu respuesta', value: `\`${chosen}\``, inline: true },
+                            { name: '⏱️ Tiempo', value: `\`${timeTaken}s\``, inline: true }
+                        )
+                        .setFooter({ text: interaction.user.tag })
+                        .setTimestamp();
+
+                    return interaction.update({ embeds: [embed], components: [] });
+                }
+
             } catch (error) {
                 console.error('❌ Error en interacción:', error);
                 const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
