@@ -7,129 +7,150 @@ module.exports = {
         .setName('settings')
         .setDescription('⚙️ Gestiona el núcleo de configuración del servidor.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        // Grupo: Canales
-        .addChannelOption(opt => opt.setName('welcome_channel').setDescription('👋 Canal para los mensajes de bienvenida.'))
-        .addChannelOption(opt => opt.setName('ticket_logs').setDescription('📜 Canal para los respaldos (transcripts) de tickets.'))
-        .addChannelOption(opt => opt.setName('audit_logs').setDescription('🛡️ Canal para logs de auditoría (mensajes borrados/editados).'))
-        // ➕ NUEVAS OPCIONES
-        .addChannelOption(opt => opt.setName('general_logs').setDescription('📊 Canal para logs generales (entradas/salidas de miembros, voz).'))
-        .addChannelOption(opt => opt.setName('ticket_category').setDescription('📁 Categoría de Discord donde se crearán los canales de tickets.'))
-        // Grupo: Roles
-        .addRoleOption(opt => opt.setName('staff_role').setDescription('🛡️ Rol asignado para la gestión de tickets.'))
-        // Grupo: Sistema
-        .addBooleanOption(opt => opt.setName('view').setDescription('🔍 Visualiza el estado actual de la configuración.')),
+        // Canales
+        .addChannelOption(opt => opt.setName('welcome_channel').setDescription('👋 Canal para mensajes de bienvenida.'))
+        .addChannelOption(opt => opt.setName('ticket_logs').setDescription('📜 Canal para transcripts de tickets.'))
+        .addChannelOption(opt => opt.setName('audit_logs').setDescription('🛡️ Canal para logs de auditoría.'))
+        .addChannelOption(opt => opt.setName('general_logs').setDescription('📊 Canal para logs generales.'))
+        .addChannelOption(opt => opt.setName('report_channel').setDescription('🚨 Canal donde llegan los reportes.'))
+        .addChannelOption(opt => opt.setName('suggest_channel').setDescription('💡 Canal de sugerencias.'))
+        .addChannelOption(opt => opt.setName('suggest_logs').setDescription('📋 Logs de sugerencias procesadas.'))
+        .addChannelOption(opt => opt.setName('ticket_category').setDescription('📁 Categoría donde se crearán los tickets.'))
+        // Roles
+        .addRoleOption(opt => opt.setName('staff_role').setDescription('🛡️ Rol del equipo de staff.'))
+        // Bienvenida rápida
+        .addRoleOption(opt => opt.setName('welcome_role').setDescription('📣 Rol a mencionar en la bienvenida.'))
+        .addStringOption(opt => opt.setName('welcome_color').setDescription('🎨 Color del embed de bienvenida en HEX. Ej: #5865F2'))
+        .addBooleanOption(opt => opt.setName('welcome_enabled').setDescription('✅ Activar o desactivar el sistema de bienvenida.'))
+        // Vista
+        .addBooleanOption(opt => opt.setName('view').setDescription('🔍 Ver configuración actual del servidor.')),
 
     async execute(interaction) {
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         const guildId = interaction.guild.id;
 
-        const welcomeChannel = interaction.options.getChannel('welcome_channel');
-        const ticketLogs = interaction.options.getChannel('ticket_logs');
-        const auditLogs = interaction.options.getChannel('audit_logs');
-        const staffRole = interaction.options.getRole('staff_role');
-        const isViewMode = interaction.options.getBoolean('view');
-        // ➕ NUEVAS
-        const generalLogs = interaction.options.getChannel('general_logs');
-        const ticketCategory = interaction.options.getChannel('ticket_category');
+        const welcomeChannel  = interaction.options.getChannel('welcome_channel');
+        const ticketLogs      = interaction.options.getChannel('ticket_logs');
+        const auditLogs       = interaction.options.getChannel('audit_logs');
+        const generalLogs     = interaction.options.getChannel('general_logs');
+        const reportChannel   = interaction.options.getChannel('report_channel');
+        const suggestChannel  = interaction.options.getChannel('suggest_channel');
+        const suggestLogs     = interaction.options.getChannel('suggest_logs');
+        const ticketCategory  = interaction.options.getChannel('ticket_category');
+        const staffRole       = interaction.options.getRole('staff_role');
+        const welcomeRole     = interaction.options.getRole('welcome_role');
+        const welcomeColor    = interaction.options.getString('welcome_color');
+        const welcomeEnabled  = interaction.options.getBoolean('welcome_enabled');
+        const isViewMode      = interaction.options.getBoolean('view');
 
-        // 1. Cláusula de Guardia
-        if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole && !auditLogs && !generalLogs && !ticketCategory) {
-            return interaction.editReply({
-                content: '⚠️ **Acción requerida:** Selecciona una opción para modificar o activa `view: True` para consultar.'
-            });
+        const hasChanges = welcomeChannel || ticketLogs || auditLogs || generalLogs ||
+                           reportChannel || suggestChannel || suggestLogs || ticketCategory ||
+                           staffRole || welcomeRole || welcomeColor || welcomeEnabled !== null;
+
+        if (!isViewMode && !hasChanges) {
+            return interaction.editReply({ content: '⚠️ Selecciona una opción para modificar o activa `view: True` para consultar.' });
         }
 
-        // 2. Modo Visualización (Dashboard)
+        // ── MODO VISUALIZACIÓN ────────────────────────────────────────────
         if (isViewMode) {
-            const config = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
+            const c = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
+            if (!c) return interaction.editReply({ content: '❌ No se encontró configuración para este servidor. Usa cualquier opción para inicializarlo.' });
 
-            if (!config) {
-                return interaction.editReply({ content: '❌ **Error:** No se encontró registro de este servidor en la base de datos.' });
-            }
+            const on = (val) => val ? '✅' : '❌';
+            const ch = (id)  => id ? `<#${id}>` : '`No configurado`';
+            const ro = (id)  => id ? `<@&${id}>` : '`No configurado`';
 
-            const statusEmoji = (val) => val ? '✅' : '❌';
-            const statusText = (val) => val ? '`ACTIVO`' : '`PENDIENTE`';
-
-            const dashboardEmbed = new EmbedBuilder()
-                .setTitle(`🛠️ Panel de Configuración | ${interaction.guild.name}`)
+            const embed = new EmbedBuilder()
+                .setTitle(`⚙️ Panel de Configuración — ${interaction.guild.name}`)
                 .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
                 .setColor('#5865F2')
-                .setDescription(`>>> **Estado global del sistema.**\nA continuación se detallan los módulos configurados para este servidor.`)
                 .addFields(
                     {
-                        name: '📢 Módulos de Comunicación',
-                        value: `${statusEmoji(config.welcome_channel)} **Bienvenida:** ${config.welcome_channel ? `<#${config.welcome_channel}>` : statusText(false)}`,
-                        inline: false
-                    },
-                    {
-                        name: '🛡️ Seguridad & Auditoría',
+                        name: '👋 Bienvenida',
                         value:
-                            `${statusEmoji(config.staff_role)} **Rol Staff:** ${config.staff_role ? `<@&${config.staff_role}>` : statusText(false)}\n` +
-                            `${statusEmoji(config.ticket_log_channel)} **Logs Tickets:** ${config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : statusText(false)}\n` +
-                            `${statusEmoji(config.audit_log_channel)} **Auditoría:** ${config.audit_log_channel ? `<#${config.audit_log_channel}>` : statusText(false)}\n` +
-                            `${statusEmoji(config.automod_enabled)} **Automod:** ${config.automod_enabled ? '`ACTIVO`' : '`INACTIVO`'} — usa \`/automod status\` para detalles`,
-                        inline: false
+                            `${on(c.welcome_enabled && c.welcome_channel)} Estado: ${c.welcome_enabled ? '`ACTIVO`' : '`INACTIVO`'}\n` +
+                            `${on(c.welcome_channel)} Canal: ${ch(c.welcome_channel)}\n` +
+                            `${on(c.welcome_role)} Rol: ${ro(c.welcome_role)}\n` +
+                            `🎨 Color: \`${c.welcome_color || '#5865F2'}\`\n` +
+                            `🖼️ Fondo: \`${c.welcome_background ? 'Personalizado' : 'Default'}\``
                     },
                     {
-                        name: '🎨 Personalización del Panel',
-                        value: `📝 **Mensaje:** \`${config.ticket_embed_msg ? 'Personalizado' : 'Default'}\`\n🖼️ **Imagen:** \`${config.ticket_embed_image ? 'Establecida' : 'Sin imagen'}\``,
-                        inline: false
-                    },
-                    // ➕ NUEVOS CAMPOS EN EL DASHBOARD
-                    {
-                        name: '🎫 Sistema de Tickets',
-                        value: `${statusEmoji(config.ticket_category)} **Categoría:** ${config.ticket_category ? `<#${config.ticket_category}>` : statusText(false)}\n📋 **Tipos:** \`${config.ticket_types || 'Sin tipos (directo)'}\`\n📩 **DM Transcript:** ${config.ticket_dm_preference ? '`ACTIVO` ✅' : '`DESACTIVADO` ❌'}`,
-                        inline: false
+                        name: '🎫 Tickets',
+                        value:
+                            `${on(c.ticket_log_channel)} Logs: ${ch(c.ticket_log_channel)}\n` +
+                            `${on(c.ticket_category)} Categoría: ${ch(c.ticket_category)}\n` +
+                            `📋 Tipos: \`${c.ticket_types || 'Ticket directo'}\`\n` +
+                            `📩 DM Transcript: ${c.ticket_dm_preference ? '`ACTIVO` ✅' : '`DESACTIVADO` ❌'}`
                     },
                     {
-                        name: '📊 Logs Generales',
-                        value: `${statusEmoji(config.general_log_channel)} **Canal:** ${config.general_log_channel ? `<#${config.general_log_channel}>` : statusText(false)}`,
-                        inline: false
+                        name: '🛡️ Moderación & Auditoría',
+                        value:
+                            `${on(c.staff_role)} Staff: ${ro(c.staff_role)}\n` +
+                            `${on(c.audit_log_channel)} Auditoría: ${ch(c.audit_log_channel)}\n` +
+                            `${on(c.general_log_channel)} General: ${ch(c.general_log_channel)}\n` +
+                            `${on(c.automod_enabled)} Automod: ${c.automod_enabled ? '`ACTIVO`' : '`INACTIVO`'} — \`/automod status\``
+                    },
+                    {
+                        name: '🚨 Reportes',
+                        value:
+                            `${on(c.report_channel)} Canal: ${ch(c.report_channel)}\n` +
+                            `⏱️ Cooldown: \`${c.report_cooldown ?? 300}s\``
+                    },
+                    {
+                        name: '💡 Sugerencias',
+                        value:
+                            `${on(c.suggest_channel)} Canal: ${ch(c.suggest_channel)}\n` +
+                            `${on(c.suggest_log_channel)} Logs: ${ch(c.suggest_log_channel)}`
+                    },
+                    {
+                        name: '⭐ Sistema XP',
+                        value:
+                            `${on(c.xp_enabled)} Estado: ${c.xp_enabled ? '`ACTIVO`' : '`INACTIVO`'}\n` +
+                            `${on(c.xp_channel)} Canal lvl-up: ${ch(c.xp_channel)}\n` +
+                            `📈 XP/msg: \`${c.xp_min ?? 15}–${c.xp_max ?? 25}\` · Cooldown: \`${c.xp_cooldown ?? 60}s\` · Mult: \`x${c.xp_multiplier ?? 1.0}\``
                     }
                 )
-                .setFooter({ text: 'Use /settings con parámetros para actualizar valores.', iconURL: interaction.client.user.displayAvatarURL() })
+                .setFooter({ text: 'Usa /settings con parámetros para actualizar · /setup-welcome para configuración avanzada' })
                 .setTimestamp();
 
-            return interaction.editReply({ embeds: [dashboardEmbed] });
+            return interaction.editReply({ embeds: [embed] });
         }
 
-        // 3. Lógica de Actualización Dinámica
+        // ── ACTUALIZACIÓN ─────────────────────────────────────────────────
         db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)').run(guildId);
 
-        let changes = [];
-        if (welcomeChannel) {
-            db.prepare('UPDATE guild_settings SET welcome_channel = ? WHERE guild_id = ?').run(welcomeChannel.id, guildId);
-            changes.push(`- **Bienvenida:** → ${welcomeChannel}`);
-        }
-        if (ticketLogs) {
-            db.prepare('UPDATE guild_settings SET ticket_log_channel = ? WHERE guild_id = ?').run(ticketLogs.id, guildId);
-            changes.push(`- **Logs de Tickets:** → ${ticketLogs}`);
-        }
-        if (auditLogs) {
-            db.prepare('UPDATE guild_settings SET audit_log_channel = ? WHERE guild_id = ?').run(auditLogs.id, guildId);
-            changes.push(`- **Auditoría:** → ${auditLogs}`);
-        }
-        if (staffRole) {
-            db.prepare('UPDATE guild_settings SET staff_role = ? WHERE guild_id = ?').run(staffRole.id, guildId);
-            changes.push(`- **Rol de Staff:** → ${staffRole}`);
-        }
-        // ➕ NUEVAS ACTUALIZACIONES
-        if (generalLogs) {
-            db.prepare('UPDATE guild_settings SET general_log_channel = ? WHERE guild_id = ?').run(generalLogs.id, guildId);
-            changes.push(`- **Logs Generales:** → ${generalLogs}`);
-        }
-        if (ticketCategory) {
-            db.prepare('UPDATE guild_settings SET ticket_category = ? WHERE guild_id = ?').run(ticketCategory.id, guildId);
-            changes.push(`- **Categoría de Tickets:** → ${ticketCategory}`);
-        }
+        const changes = [];
+        const set = (col, val, label) => {
+            db.prepare(`UPDATE guild_settings SET ${col} = ? WHERE guild_id = ?`).run(val, guildId);
+            changes.push(label);
+        };
 
-        const successEmbed = new EmbedBuilder()
-            .setTitle('✅ Sincronización Exitosa')
-            .setDescription(`Se han aplicado los siguientes cambios en la configuración:\n\n${changes.join('\n')}`)
-            .setColor('#2ECC71')
-            .setThumbnail('https://cdn-icons-png.flaticon.com/512/190/190411.png')
-            .setFooter({ text: 'Los cambios surten efecto de manera inmediata.' });
+        if (welcomeChannel)        set('welcome_channel',    welcomeChannel.id,             `👋 **Bienvenida** → ${welcomeChannel}`);
+        if (ticketLogs)            set('ticket_log_channel', ticketLogs.id,                 `📜 **Logs Tickets** → ${ticketLogs}`);
+        if (auditLogs)             set('audit_log_channel',  auditLogs.id,                  `🛡️ **Auditoría** → ${auditLogs}`);
+        if (generalLogs)           set('general_log_channel',generalLogs.id,                `📊 **Logs Generales** → ${generalLogs}`);
+        if (reportChannel)         set('report_channel',     reportChannel.id,              `🚨 **Reportes** → ${reportChannel}`);
+        if (suggestChannel)        set('suggest_channel',    suggestChannel.id,             `💡 **Sugerencias** → ${suggestChannel}`);
+        if (suggestLogs)           set('suggest_log_channel',suggestLogs.id,                `📋 **Logs Sugerencias** → ${suggestLogs}`);
+        if (ticketCategory)        set('ticket_category',    ticketCategory.id,             `📁 **Categoría Tickets** → ${ticketCategory}`);
+        if (staffRole)             set('staff_role',         staffRole.id,                  `🛡️ **Rol Staff** → ${staffRole}`);
+        if (welcomeRole)           set('welcome_role',       welcomeRole.id,                `📣 **Rol Bienvenida** → ${welcomeRole}`);
+        if (welcomeColor) {
+            if (!/^#[0-9A-Fa-f]{6}$/.test(welcomeColor)) {
+                return interaction.editReply({ content: '❌ El color debe estar en formato HEX válido. Ej: `#5865F2`' });
+            }
+            set('welcome_color', welcomeColor, `🎨 **Color Bienvenida** → \`${welcomeColor}\``);
+        }
+        if (welcomeEnabled !== null) set('welcome_enabled', welcomeEnabled ? 1 : 0, `${welcomeEnabled ? '✅' : '🚫'} **Bienvenida** → \`${welcomeEnabled ? 'ACTIVADA' : 'DESACTIVADA'}\``);
 
-        await interaction.editReply({ embeds: [successEmbed] });
-    },
+        return interaction.editReply({
+            embeds: [new EmbedBuilder()
+                .setTitle('✅ Configuración Actualizada')
+                .setDescription(`Se aplicaron **${changes.length}** cambio(s):\n\n${changes.map(c => `- ${c}`).join('\n')}`)
+                .setColor('#57F287')
+                .setFooter({ text: 'Los cambios surten efecto inmediatamente.' })
+                .setTimestamp()
+            ]
+        });
+    }
 };
