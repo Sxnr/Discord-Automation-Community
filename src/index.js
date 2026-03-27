@@ -2,6 +2,8 @@ const { Client, GatewayIntentBits, Collection, ActivityType } = require('discord
 const fs   = require('node:fs');
 const path = require('node:path');
 const config = require('./config.js');
+const birthdayChecker = require('./events/birthdayChecker');
+client.once(birthdayChecker.name, (...args) => birthdayChecker.execute(...args));
 
 const client = new Client({
     intents: [
