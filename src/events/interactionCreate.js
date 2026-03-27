@@ -583,6 +583,108 @@ module.exports = {
                     });
                 }
 
+                // ── EVENTOS ───────────────────────────────────────────────────────────────
+
+                if (interaction.customId.startsWith('event_join_') ||
+                    interaction.customId.startsWith('event_leave_') ||
+                    interaction.customId.startsWith('event_attendees_') ||
+                    interaction.customId.startsWith('event_start_') ||
+                    interaction.customId.startsWith('event_finish_') ||
+                    interaction.customId.startsWith('event_cancel_')) {
+
+                    const parts = interaction.customId.split('_');
+                    const action = parts[1];
+                    const eventId = parseInt(parts[2]);
+                    const userId = interaction.user.id;
+
+                    const event = db.prepare('SELECT * FROM server_events WHERE id = ?').get(eventId);
+                    if (!event) return interaction.reply({ content: '❌ Evento no encontrado.', flags: [MessageFlags.Ephemeral] });
+
+                    const { buildEventEmbed, buildEventButtons } = require('../commands/utility/event');
+                    const attendees = JSON.parse(event.attendees || '[]');
+
+                    // ── Asistir ──
+                    if (action === 'join') {
+                        if (['finished', 'cancelled'].includes(event.status))
+                            return interaction.reply({ content: '❌ Este evento ya no acepta asistentes.', flags: [MessageFlags.Ephemeral] });
+                        if (attendees.includes(userId))
+                            return interaction.reply({ content: '⚠️ Ya estás inscrito en este evento.', flags: [MessageFlags.Ephemeral] });
+                        if (event.max_attendees > 0 && attendees.length >= event.max_attendees)
+                            return interaction.reply({ content: '❌ Este evento ya está lleno.', flags: [MessageFlags.Ephemeral] });
+
+                        attendees.push(userId);
+                        db.prepare('UPDATE server_events SET attendees = ? WHERE id = ?').run(JSON.stringify(attendees), eventId);
+                        const updated = db.prepare('SELECT * FROM server_events WHERE id = ?').get(eventId);
+                        await interaction.update({ embeds: [buildEventEmbed(updated, interaction.guild)], components: buildEventButtons(eventId, updated.status, userId, event.author_id) });
+                        return interaction.followUp({ content: '✅ ¡Te has inscrito en el evento!', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    // ── Cancelar asistencia ──
+                    if (action === 'leave') {
+                        if (!attendees.includes(userId))
+                            return interaction.reply({ content: '⚠️ No estás inscrito en este evento.', flags: [MessageFlags.Ephemeral] });
+
+                        const newAttendees = attendees.filter(id => id !== userId);
+                        db.prepare('UPDATE server_events SET attendees = ? WHERE id = ?').run(JSON.stringify(newAttendees), eventId);
+                        const updated = db.prepare('SELECT * FROM server_events WHERE id = ?').get(eventId);
+                        await interaction.update({ embeds: [buildEventEmbed(updated, interaction.guild)], components: buildEventButtons(eventId, updated.status, userId, event.author_id) });
+                        return interaction.followUp({ content: '✅ Has cancelado tu asistencia.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    // ── Ver asistentes ──
+                    if (action === 'attendees') {
+                        if (!attendees.length)
+                            return interaction.reply({ content: '❌ Nadie se ha inscrito todavía.', flags: [MessageFlags.Ephemeral] });
+
+                        const list = attendees.map((id, i) => `${i + 1}. <@${id}>`).join('\n');
+                        return interaction.reply({
+                            embeds: [new EmbedBuilder()
+                                .setTitle(`👥 Asistentes — ${event.title}`)
+                                .setColor('#5865F2')
+                                .setDescription(list.slice(0, 2000))
+                                .setFooter({ text: `${attendees.length} inscrito(s)` })
+                            ],
+                            flags: [MessageFlags.Ephemeral]
+                        });
+                    }
+
+                    // ── Iniciar ──
+                    if (action === 'start') {
+                        if (event.author_id !== userId && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageEvents))
+                            return interaction.reply({ content: '❌ Solo el organizador puede iniciar este evento.', flags: [MessageFlags.Ephemeral] });
+                        if (event.status !== 'upcoming')
+                            return interaction.reply({ content: '❌ Este evento no puede iniciarse.', flags: [MessageFlags.Ephemeral] });
+
+                        db.prepare("UPDATE server_events SET status = 'ongoing' WHERE id = ?").run(eventId);
+                        const updated = db.prepare('SELECT * FROM server_events WHERE id = ?').get(eventId);
+                        return interaction.update({ embeds: [buildEventEmbed(updated, interaction.guild)], components: buildEventButtons(eventId, 'ongoing', userId, event.author_id) });
+                    }
+
+                    // ── Finalizar ──
+                    if (action === 'finish') {
+                        if (event.author_id !== userId && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageEvents))
+                            return interaction.reply({ content: '❌ Solo el organizador puede finalizar este evento.', flags: [MessageFlags.Ephemeral] });
+                        if (event.status !== 'ongoing')
+                            return interaction.reply({ content: '❌ Solo se puede finalizar un evento en curso.', flags: [MessageFlags.Ephemeral] });
+
+                        db.prepare("UPDATE server_events SET status = 'finished' WHERE id = ?").run(eventId);
+                        const updated = db.prepare('SELECT * FROM server_events WHERE id = ?').get(eventId);
+                        return interaction.update({ embeds: [buildEventEmbed(updated, interaction.guild)], components: buildEventButtons(eventId, 'finished', userId, event.author_id) });
+                    }
+
+                    // ── Cancelar ──
+                    if (action === 'cancel') {
+                        if (event.author_id !== userId && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageEvents))
+                            return interaction.reply({ content: '❌ Solo el organizador puede cancelar este evento.', flags: [MessageFlags.Ephemeral] });
+                        if (['finished', 'cancelled'].includes(event.status))
+                            return interaction.reply({ content: '❌ Este evento ya está finalizado o cancelado.', flags: [MessageFlags.Ephemeral] });
+
+                        db.prepare("UPDATE server_events SET status = 'cancelled' WHERE id = ?").run(eventId);
+                        const updated = db.prepare('SELECT * FROM server_events WHERE id = ?').get(eventId);
+                        return interaction.update({ embeds: [buildEventEmbed(updated, interaction.guild)], components: buildEventButtons(eventId, 'cancelled', userId, event.author_id) });
+                    }
+                }
+
             } catch (error) {
                 console.error('❌ Error en interacción:', error);
                 const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
