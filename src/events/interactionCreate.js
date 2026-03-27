@@ -824,6 +824,39 @@ module.exports = {
                     return interaction.update({ embeds: [embed], components: [] });
                 }
 
+                // ── Profile reset confirm/cancel ──────────────────────────────────────────
+                if (interaction.customId.startsWith('profile_reset_')) {
+                    const [, , action, , ownerId] = interaction.customId.split('_');
+                    // Realmente: profile_reset_confirm_userId → split da ['profile','reset','confirm',userId]
+                    const parts = interaction.customId.split('_');
+                    const act = parts[2];          // confirm | cancel
+                    const owner = parts[3];          // userId
+
+                    if (interaction.user.id !== owner) {
+                        return interaction.reply({ content: '❌ Este botón no es tuyo.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    if (act === 'cancel') {
+                        return interaction.update({
+                            embeds: [new EmbedBuilder().setColor('#57F287').setDescription('✅ Reset cancelado.')],
+                            components: []
+                        });
+                    }
+
+                    if (act === 'confirm') {
+                        db.prepare(`
+                        UPDATE profiles SET bio = '', color = '#5865F2', banner_url = NULL,
+                        timezone = 'UTC', birthday_show = 1, fav_emoji = '⭐', socials = '{}'
+                        WHERE guild_id = ? AND user_id = ?
+                        `).run(interaction.guild.id, owner);
+
+                        return interaction.update({
+                            embeds: [new EmbedBuilder().setColor('#57F287').setDescription('🔄 Perfil reseteado correctamente.')],
+                            components: []
+                        });
+                    }
+                }
+
             } catch (error) {
                 console.error('❌ Error en interacción:', error);
                 const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
