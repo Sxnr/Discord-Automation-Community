@@ -231,6 +231,7 @@ const requiredColumns = {
     birthday_channel:      'TEXT',
     birthday_role:         'TEXT',
     birthday_message:      "TEXT DEFAULT '🎂 ¡Hoy es el cumpleaños de {user}! ¡Felicidades!'",
+    birthday_hour: 'INTEGER DEFAULT 8',
     // 📊 Polls
     poll_channel:          'TEXT',
     // ⏰ Recordatorios
