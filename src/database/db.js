@@ -118,6 +118,71 @@ db.prepare(`
     )
 `).run();
 
+// ── 🎂 Cumpleaños ──────────────────────────────────────────────────────────
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS birthdays (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        user_id    TEXT NOT NULL,
+        day        INTEGER NOT NULL,
+        month      INTEGER NOT NULL,
+        notified   INTEGER DEFAULT 0,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ── 📊 Polls ───────────────────────────────────────────────────────────────
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS polls (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
+        message_id  TEXT,
+        author_id   TEXT NOT NULL,
+        question    TEXT NOT NULL,
+        options     TEXT NOT NULL,
+        votes       TEXT NOT NULL DEFAULT '{}',
+        voters      TEXT NOT NULL DEFAULT '[]',
+        ends_at     INTEGER,
+        ended       INTEGER DEFAULT 0,
+        timestamp   INTEGER NOT NULL
+    )
+`).run();
+
+// ── ⏰ Recordatorios ───────────────────────────────────────────────────────
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reminders (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        user_id     TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
+        message     TEXT NOT NULL,
+        remind_at   INTEGER NOT NULL,
+        sent        INTEGER DEFAULT 0,
+        timestamp   INTEGER NOT NULL
+    )
+`).run();
+
+// ── 📅 Eventos del servidor ────────────────────────────────────────────────
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS server_events (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id     TEXT NOT NULL,
+        author_id    TEXT NOT NULL,
+        channel_id   TEXT NOT NULL,
+        message_id   TEXT,
+        title        TEXT NOT NULL,
+        description  TEXT,
+        location     TEXT,
+        starts_at    INTEGER NOT NULL,
+        ends_at      INTEGER,
+        max_attendees INTEGER DEFAULT 0,
+        attendees    TEXT DEFAULT '[]',
+        status       TEXT DEFAULT 'upcoming',
+        timestamp    INTEGER NOT NULL
+    )
+`).run();
+
 // ── Migración: guild_settings ──────────────────────────────────────────────
 const existingColumns = db.prepare("PRAGMA table_info(guild_settings)").all().map(c => c.name);
 const requiredColumns = {
@@ -156,12 +221,23 @@ const requiredColumns = {
     suggest_log_channel:   'TEXT',
     report_channel:        'TEXT',
     report_cooldown:       'INTEGER DEFAULT 300',
-    // ➕ Bienvenida mejorada
+    // Bienvenida mejorada
     welcome_message:       "TEXT DEFAULT '¡Bienvenido {user} a {server}!'",
     welcome_background:    'TEXT',
     welcome_color:         "TEXT DEFAULT '#5865F2'",
     welcome_role:          'TEXT',
-    welcome_enabled:       'INTEGER DEFAULT 1'
+    welcome_enabled:       'INTEGER DEFAULT 1',
+    // 🎂 Cumpleaños
+    birthday_channel:      'TEXT',
+    birthday_role:         'TEXT',
+    birthday_message:      "TEXT DEFAULT '🎂 ¡Hoy es el cumpleaños de {user}! ¡Felicidades!'",
+    // 📊 Polls
+    poll_channel:          'TEXT',
+    // ⏰ Recordatorios
+    reminder_max:          'INTEGER DEFAULT 10',
+    // 📅 Eventos
+    events_channel:        'TEXT',
+    events_log_channel:    'TEXT'
 };
 
 for (const [col, type] of Object.entries(requiredColumns)) {
