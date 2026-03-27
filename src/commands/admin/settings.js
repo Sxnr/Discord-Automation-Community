@@ -23,14 +23,14 @@ module.exports = {
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         const guildId = interaction.guild.id;
 
-        const welcomeChannel  = interaction.options.getChannel('welcome_channel');
-        const ticketLogs      = interaction.options.getChannel('ticket_logs');
-        const auditLogs       = interaction.options.getChannel('audit_logs');
-        const staffRole       = interaction.options.getRole('staff_role');
-        const isViewMode      = interaction.options.getBoolean('view');
+        const welcomeChannel = interaction.options.getChannel('welcome_channel');
+        const ticketLogs = interaction.options.getChannel('ticket_logs');
+        const auditLogs = interaction.options.getChannel('audit_logs');
+        const staffRole = interaction.options.getRole('staff_role');
+        const isViewMode = interaction.options.getBoolean('view');
         // ➕ NUEVAS
-        const generalLogs     = interaction.options.getChannel('general_logs');
-        const ticketCategory  = interaction.options.getChannel('ticket_category');
+        const generalLogs = interaction.options.getChannel('general_logs');
+        const ticketCategory = interaction.options.getChannel('ticket_category');
 
         // 1. Cláusula de Guardia
         if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole && !auditLogs && !generalLogs && !ticketCategory) {
@@ -48,7 +48,7 @@ module.exports = {
             }
 
             const statusEmoji = (val) => val ? '✅' : '❌';
-            const statusText  = (val) => val ? '`ACTIVO`' : '`PENDIENTE`';
+            const statusText = (val) => val ? '`ACTIVO`' : '`PENDIENTE`';
 
             const dashboardEmbed = new EmbedBuilder()
                 .setTitle(`🛠️ Panel de Configuración | ${interaction.guild.name}`)
@@ -56,20 +56,24 @@ module.exports = {
                 .setColor('#5865F2')
                 .setDescription(`>>> **Estado global del sistema.**\nA continuación se detallan los módulos configurados para este servidor.`)
                 .addFields(
-                    { 
-                        name: '📢 Módulos de Comunicación', 
-                        value: `${statusEmoji(config.welcome_channel)} **Bienvenida:** ${config.welcome_channel ? `<#${config.welcome_channel}>` : statusText(false)}`, 
-                        inline: false 
+                    {
+                        name: '📢 Módulos de Comunicación',
+                        value: `${statusEmoji(config.welcome_channel)} **Bienvenida:** ${config.welcome_channel ? `<#${config.welcome_channel}>` : statusText(false)}`,
+                        inline: false
                     },
-                    { 
-                        name: '🛡️ Seguridad & Auditoría', 
-                        value: `${statusEmoji(config.staff_role)} **Rol Staff:** ${config.staff_role ? `<@&${config.staff_role}>` : statusText(false)}\n${statusEmoji(config.ticket_log_channel)} **Logs Tickets:** ${config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : statusText(false)}\n${statusEmoji(config.audit_log_channel)} **Auditoría:** ${config.audit_log_channel ? `<#${config.audit_log_channel}>` : statusText(false)}`, 
-                        inline: false 
+                    {
+                        name: '🛡️ Seguridad & Auditoría',
+                        value:
+                            `${statusEmoji(config.staff_role)} **Rol Staff:** ${config.staff_role ? `<@&${config.staff_role}>` : statusText(false)}\n` +
+                            `${statusEmoji(config.ticket_log_channel)} **Logs Tickets:** ${config.ticket_log_channel ? `<#${config.ticket_log_channel}>` : statusText(false)}\n` +
+                            `${statusEmoji(config.audit_log_channel)} **Auditoría:** ${config.audit_log_channel ? `<#${config.audit_log_channel}>` : statusText(false)}\n` +
+                            `${statusEmoji(config.automod_enabled)} **Automod:** ${config.automod_enabled ? '`ACTIVO`' : '`INACTIVO`'} — usa \`/automod status\` para detalles`,
+                        inline: false
                     },
-                    { 
-                        name: '🎨 Personalización del Panel', 
-                        value: `📝 **Mensaje:** \`${config.ticket_embed_msg ? 'Personalizado' : 'Default'}\`\n🖼️ **Imagen:** \`${config.ticket_embed_image ? 'Establecida' : 'Sin imagen'}\``, 
-                        inline: false 
+                    {
+                        name: '🎨 Personalización del Panel',
+                        value: `📝 **Mensaje:** \`${config.ticket_embed_msg ? 'Personalizado' : 'Default'}\`\n🖼️ **Imagen:** \`${config.ticket_embed_image ? 'Establecida' : 'Sin imagen'}\``,
+                        inline: false
                     },
                     // ➕ NUEVOS CAMPOS EN EL DASHBOARD
                     {

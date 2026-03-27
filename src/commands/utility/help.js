@@ -1,62 +1,86 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { 
+    SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, 
+    StringSelectMenuBuilder, MessageFlags 
+} = require('discord.js'); // ➕ FIX: MessageFlags importado
 
 module.exports = {
     category: 'utility',
     data: new SlashCommandBuilder()
         .setName('help')
         .setDescription('📂 Despliega el panel de asistencia interactivo con todos los comandos.'),
+
     async execute(interaction) {
         const { client } = interaction;
         const commands = client.commands;
 
-        // Calculamos estadísticas dinámicas para un look más robusto y data-driven
         const totalCommands = commands.size;
-        const adminCount = commands.filter(cmd => cmd.category === 'admin').size;
-        const utilityCount = commands.filter(cmd => cmd.category === 'utility').size;
+        const adminCount    = commands.filter(cmd => cmd.category === 'admin').size;
+        const utilityCount  = commands.filter(cmd => cmd.category === 'utility').size;
+        const guildIcon     = interaction.guild.iconURL({ dynamic: true });
+        const botAvatar     = client.user.displayAvatarURL();
 
         const helpMainEmbed = new EmbedBuilder()
-            .setTitle('📚 Centro de Ayuda | Global System')
+            .setTitle(`${client.user.username} • Centro de Comandos`)
             .setColor('#5865F2')
-            .setThumbnail(client.user.displayAvatarURL())
+            .setThumbnail(botAvatar)
             .setDescription(
-                `>>> **Bienvenido al núcleo de asistencia avanzada.**\n` +
-                `Explora las capacidades del sistema utilizando el menú interactivo. Cada módulo ha sido optimizado para maximizar la eficiencia de tu comunidad.`
+                `**¡Hola, ${interaction.user}!** 👋\n\n` +
+                `Bienvenido al panel de asistencia de **${client.user.username}**.\n` +
+                `Usa el menú de abajo para explorar los módulos disponibles.\n\n` +
+                `> 💡 Selecciona una categoría para ver los comandos detallados.`
             )
             .addFields(
-                { 
-                    name: '🛡️ Módulo de Administración', 
-                    value: `Gestión de infraestructura, tickets y roles staff.\n> \`${adminCount} Comandos disponibles\``, 
-                    inline: true 
+                {
+                    name: '📊 Estadísticas del Sistema',
+                    value:
+                        `\`\`\`\n` +
+                        `📦 Comandos totales  →  ${totalCommands}\n` +
+                        `🛡️ Administración    →  ${adminCount}\n` +
+                        `🛠️ Utilidad          →  ${utilityCount}\n` +
+                        `\`\`\``,
+                    inline: false
                 },
-                { 
-                    name: '🛠️ Módulo de Utilidad', 
-                    value: `Herramientas de diagnóstico, monitoreo y estado.\n> \`${utilityCount} Comandos disponibles\``, 
-                    inline: true 
+                {
+                    name: '🛡️ Administración',
+                    value: `Tickets, sorteos, warns, automod y configuración del servidor.\n> \`${adminCount} comandos\``,
+                    inline: true
+                },
+                {
+                    name: '🛠️ Utilidad',
+                    value: `Herramientas de diagnóstico, estado y asistencia general.\n> \`${utilityCount} comandos\``,
+                    inline: true
+                },
+                {
+                    name: '⚡ Accesos Rápidos',
+                    value:
+                        `> \`/settings\` — Configuración del servidor\n` +
+                        `> \`/setup-tickets\` — Sistema de tickets\n` +
+                        `> \`/giveaway start\` — Iniciar un sorteo\n` +
+                        `> \`/automod status\` — Estado del automod\n` +
+                        `> \`/warn add\` — Advertir a un usuario`,
+                    inline: false
                 }
             )
-            .addFields({
-                name: '🚀 Instrucciones de Navegación',
-                value: 'Utiliza el menú desplegable inferior para filtrar los comandos por categoría. Obtendrás una descripción detallada de cada función disponible.'
-            })
-            .setFooter({ 
-                text: `Sincronizado con el clúster global • ${interaction.guild.name}`, 
-                iconURL: interaction.guild.iconURL({ dynamic: true }) 
+            .setImage('https://media.discordapp.net/attachments/1380335501776654357/1487156050288312330/Floppa_GIF_-_Floppa_-_Discover__Share_GIFs.gif?ex=69c81d80&is=69c6cc00&hm=3038db4586311e89424f249f06ddc2ed1cf3e1ecb74bb57d20526feefb2a725d&=') // opcional: cambia o elimina esta línea
+            .setFooter({
+                text: `${interaction.guild.name}  •  ${totalCommands} comandos disponibles`,
+                iconURL: guildIcon
             })
             .setTimestamp();
 
         const menu = new StringSelectMenuBuilder()
             .setCustomId('help_menu')
-            .setPlaceholder('📂 Selecciona una categoría del sistema...')
+            .setPlaceholder('📂 Selecciona una categoría...')
             .addOptions([
                 {
                     label: 'Administración',
-                    description: 'Configuración de seguridad, tickets y gestión staff.',
+                    description: `${adminCount} comandos — tickets, sorteos, warns, automod.`,
                     value: 'admin',
                     emoji: '🛡️',
                 },
                 {
                     label: 'Utilidad',
-                    description: 'Comandos de diagnóstico, latencia y asistencia técnica.',
+                    description: `${utilityCount} comandos — diagnóstico y asistencia.`,
                     value: 'utility',
                     emoji: '🛠️',
                 },
@@ -64,11 +88,10 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(menu);
 
-        // Respondemos de forma efímera para mantener la limpieza del canal
         await interaction.reply({ 
             embeds: [helpMainEmbed], 
             components: [row], 
-            ephemeral: true 
+            flags: [MessageFlags.Ephemeral]
         });
     },
 };
