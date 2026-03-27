@@ -3,7 +3,7 @@ const path = require('node:path');
 
 const db = new Database(path.join(__dirname, 'database.sqlite'));
 
-// Tabla base con TODAS las columnas
+// Tabla: configuración del servidor
 db.prepare(`
     CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id             TEXT PRIMARY KEY,
@@ -19,11 +19,24 @@ db.prepare(`
         ticket_dm_preference INTEGER DEFAULT 0,
         ticket_category      TEXT,
         ticket_count         INTEGER DEFAULT 0,
-        ticket_types         TEXT
+        ticket_types         TEXT,
+        -- ➕ AUTOMOD
+        automod_enabled      INTEGER DEFAULT 0,
+        automod_log_channel  TEXT,
+        automod_anti_spam    INTEGER DEFAULT 0,
+        automod_spam_limit   INTEGER DEFAULT 5,
+        automod_spam_interval INTEGER DEFAULT 5000,
+        automod_anti_links   INTEGER DEFAULT 0,
+        automod_anti_invites INTEGER DEFAULT 0,
+        automod_bad_words    TEXT DEFAULT '[]',
+        -- ➕ WARN SANCTIONS
+        warn_mute_threshold  INTEGER DEFAULT 3,
+        warn_ban_threshold   INTEGER DEFAULT 5,
+        warn_mute_duration   INTEGER DEFAULT 3600000
     )
 `).run();
 
-// ➕ Tabla de sorteos con columnas nuevas
+// Tabla: sorteos
 db.prepare(`
     CREATE TABLE IF NOT EXISTS giveaways (
         message_id    TEXT PRIMARY KEY,
@@ -40,19 +53,67 @@ db.prepare(`
     )
 `).run();
 
+// ➕ Tabla: advertencias
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS warns (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id     TEXT NOT NULL,
+        user_id      TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        reason       TEXT NOT NULL,
+        timestamp    INTEGER NOT NULL
+    )
+`).run();
+
+// ➕ Agregar después de la tabla warns:
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS mod_logs (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id     TEXT NOT NULL,
+        user_id      TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        action       TEXT NOT NULL,
+        reason       TEXT NOT NULL,
+        duration     TEXT,
+        timestamp    INTEGER NOT NULL,
+        active       INTEGER DEFAULT 1
+    )
+`).run();
+
+// Migración automática mod_logs
+const existingModLogColumns = db.prepare("PRAGMA table_info(mod_logs)").all().map(c => c.name);
+const requiredModLogColumns = { duration: 'TEXT', active: 'INTEGER DEFAULT 1' };
+for (const [col, type] of Object.entries(requiredModLogColumns)) {
+    if (!existingModLogColumns.includes(col)) {
+        db.prepare(`ALTER TABLE mod_logs ADD COLUMN ${col} ${type}`).run();
+        console.log(`[DB] Columna migrada (mod_logs): ${col}`);
+    }
+}
+
 // Migración automática guild_settings
 const existingColumns = db.prepare("PRAGMA table_info(guild_settings)").all().map(c => c.name);
 const requiredColumns = {
-    ticket_log_channel:   'TEXT',
-    ticket_embed_msg:     'TEXT',
-    ticket_embed_image:   'TEXT',
-    ticket_welcome_msg:   'TEXT',
-    audit_log_channel:    'TEXT',
-    general_log_channel:  'TEXT',
-    ticket_dm_preference: 'INTEGER DEFAULT 0',
-    ticket_category:      'TEXT',
-    ticket_count:         'INTEGER DEFAULT 0',
-    ticket_types:         'TEXT'
+    ticket_log_channel:    'TEXT',
+    ticket_embed_msg:      'TEXT',
+    ticket_embed_image:    'TEXT',
+    ticket_welcome_msg:    'TEXT',
+    audit_log_channel:     'TEXT',
+    general_log_channel:   'TEXT',
+    ticket_dm_preference:  'INTEGER DEFAULT 0',
+    ticket_category:       'TEXT',
+    ticket_count:          'INTEGER DEFAULT 0',
+    ticket_types:          'TEXT',
+    automod_enabled:       'INTEGER DEFAULT 0',
+    automod_log_channel:   'TEXT',
+    automod_anti_spam:     'INTEGER DEFAULT 0',
+    automod_spam_limit:    'INTEGER DEFAULT 5',
+    automod_spam_interval: 'INTEGER DEFAULT 5000',
+    automod_anti_links:    'INTEGER DEFAULT 0',
+    automod_anti_invites:  'INTEGER DEFAULT 0',
+    automod_bad_words:     "TEXT DEFAULT '[]'",
+    warn_mute_threshold:   'INTEGER DEFAULT 3',
+    warn_ban_threshold:    'INTEGER DEFAULT 5',
+    warn_mute_duration:    'INTEGER DEFAULT 3600000'
 };
 
 for (const [col, type] of Object.entries(requiredColumns)) {
@@ -62,7 +123,7 @@ for (const [col, type] of Object.entries(requiredColumns)) {
     }
 }
 
-// ➕ Migración automática giveaways
+// Migración automática giveaways
 const existingGiveawayColumns = db.prepare("PRAGMA table_info(giveaways)").all().map(c => c.name);
 const requiredGiveawayColumns = {
     host_id:       'TEXT',
