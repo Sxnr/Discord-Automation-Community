@@ -775,22 +775,48 @@ module.exports = {
 
                     if (!session) return interaction.reply({ content: '❌ Esta pregunta ya expiró.', flags: [MessageFlags.Ephemeral] });
                     if (session.userId !== interaction.user.id) return interaction.reply({ content: '❌ Esta no es tu pregunta.', flags: [MessageFlags.Ephemeral] });
-                    if (session.answered) return interaction.reply({ content: '⚠️ Ya respondiste esta pregunta.', flags: [MessageFlags.Ephemeral] });
+                    if (session.answered) return interaction.reply({ content: '⚠️ Ya respondiste.', flags: [MessageFlags.Ephemeral] });
 
                     session.answered = true;
                     activeSessions.delete(sessionId);
 
                     const chosen = session.shuffled[optIdx];
-                    const isRight = chosen === session.answer;
+                    const isRight = String(chosen) === String(session.answer);
                     const timeTaken = ((Date.now() - session.startTime) / 1000).toFixed(1);
+                    const guildId = interaction.guild.id;
+                    const userId = interaction.user.id;
+
+                    // Actualizar stats
+                    if (isRight) {
+                        db.prepare(`
+            INSERT INTO trivia_stats (guild_id, user_id, correct, streak, best_streak)
+            VALUES (?, ?, 1, 1, 1)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                correct     = correct + 1,
+                streak      = streak + 1,
+                best_streak = MAX(best_streak, streak + 1)
+        `).run(guildId, userId);
+                    } else {
+                        db.prepare(`
+            INSERT INTO trivia_stats (guild_id, user_id, wrong, streak)
+            VALUES (?, ?, 1, 0)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET wrong = wrong + 1, streak = 0
+        `).run(guildId, userId);
+                    }
+
+                    const stats = db.prepare('SELECT streak, best_streak FROM trivia_stats WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
 
                     const embed = new EmbedBuilder()
                         .setTitle(`${session.question.cat} — Trivia`)
                         .setColor(isRight ? '#57F287' : '#ED4245')
-                        .setDescription(`## ${session.question.q}\n\n${isRight ? '✅ **¡Correcto!**' : `❌ **Incorrecto.** La respuesta era: **${session.answer}**`}`)
+                        .setDescription(
+                            `## ${session.question.q}\n\n` +
+                            (isRight ? `✅ **¡Correcto!**` : `❌ **Incorrecto.** La respuesta era: **${session.answer}**`)
+                        )
                         .addFields(
                             { name: '🎯 Tu respuesta', value: `\`${chosen}\``, inline: true },
-                            { name: '⏱️ Tiempo', value: `\`${timeTaken}s\``, inline: true }
+                            { name: '⏱️ Tiempo', value: `\`${timeTaken}s\``, inline: true },
+                            { name: '🔥 Racha', value: `\`${stats?.streak || 0}\``, inline: true }
                         )
                         .setFooter({ text: interaction.user.tag })
                         .setTimestamp();
