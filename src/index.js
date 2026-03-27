@@ -65,43 +65,4 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// --- GIVEAWAY MANAGER ---
-// ➕ Se inicia después del ready para que el client esté listo
-const { checkGiveaways, updateParticipantCounts } = require('./utils/giveawayManager');
-
-client.once('ready', () => {
-    // Verificar sorteos expirados cada 10 segundos
-    setInterval(() => checkGiveaways(client), 10000);
-    // Actualizar contador de participantes en embeds cada 60 segundos
-    setInterval(() => updateParticipantCounts(client), 60000);
-
-    // --- STATUS ROTATIVO ---
-    // FIX: Lee datos en VIVO en cada rotación para que los números sean siempre correctos
-    const getStatuses = () => {
-        const totalMembers = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
-        const guildCount   = client.guilds.cache.size;
-        const cmdCount     = client.commands.size;
-
-        return [
-            { text: `${guildCount} servidor${guildCount !== 1 ? 'es' : ''}`,  type: ActivityType.Watching  },
-            { text: `${totalMembers} miembro${totalMembers !== 1 ? 's' : ''}`, type: ActivityType.Watching  },
-            { text: `${cmdCount} comandos disponibles`,                         type: ActivityType.Listening },
-            { text: '/help para empezar',                                       type: ActivityType.Playing   },
-            { text: 'Gestionando la comunidad',                                 type: ActivityType.Watching  },
-        ];
-    };
-
-    let statusIndex = 0;
-
-    const rotateStatus = () => {
-        const statuses = getStatuses(); // Siempre datos frescos
-        const current  = statuses[statusIndex % statuses.length];
-        client.user.setActivity(current.text, { type: current.type });
-        statusIndex++;
-    };
-
-    rotateStatus(); // Ejecutar inmediatamente al arrancar
-    setInterval(rotateStatus, 15000); // Rotar cada 15 segundos
-});
-
 client.login(config.token);
