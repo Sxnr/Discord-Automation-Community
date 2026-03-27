@@ -87,7 +87,6 @@ db.prepare(`
     )
 `).run();
 
-// ➕ Tabla: sugerencias
 db.prepare(`
     CREATE TABLE IF NOT EXISTS suggestions (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,6 +100,22 @@ db.prepare(`
         votes_up    TEXT DEFAULT '[]',
         votes_down  TEXT DEFAULT '[]',
         timestamp   INTEGER NOT NULL
+    )
+`).run();
+
+// ➕ Tabla: reportes
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reports (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id     TEXT NOT NULL,
+        reporter_id  TEXT NOT NULL,
+        reported_id  TEXT NOT NULL,
+        reason       TEXT NOT NULL,
+        channel_id   TEXT,
+        message_id   TEXT,
+        status       TEXT DEFAULT 'pending',
+        handled_by   TEXT,
+        timestamp    INTEGER NOT NULL
     )
 `).run();
 
@@ -138,9 +153,11 @@ const requiredColumns = {
     xp_level_roles:        "TEXT DEFAULT '{}'",
     xp_levelup_msg:        "TEXT DEFAULT '¡Felicitaciones {user}! 🎊 Has alcanzado el nivel **{level}**'",
     xp_levelup_img:        'TEXT',
-    // ➕ Sugerencias
     suggest_channel:       'TEXT',
-    suggest_log_channel:   'TEXT'
+    suggest_log_channel:   'TEXT',
+    // ➕ Reportes
+    report_channel:        'TEXT',
+    report_cooldown:       'INTEGER DEFAULT 300'
 };
 
 for (const [col, type] of Object.entries(requiredColumns)) {

@@ -4,9 +4,9 @@ const {
 } = require('discord.js');
 const discordTranscripts = require('discord-html-transcripts');
 const db = require('../database/db');
-const { buildWarnPanel }    = require('../commands/admin/warn');
+const { buildWarnPanel } = require('../commands/admin/warn');
 const { buildHistoryPanel } = require('../commands/admin/mod');
-const { buildLeaderboard }  = require('../commands/utility/leaderboard');
+const { buildLeaderboard } = require('../commands/utility/leaderboard');
 const { buildEmbed, buildVoteRow } = require('../utils/suggestHelpers');
 
 
@@ -154,7 +154,7 @@ module.exports = {
                 const target = await interaction.client.users.fetch(userId).catch(() => null);
                 if (!target) return interaction.update({ content: '❌ Usuario no encontrado.', embeds: [], components: [] });
 
-                const logs  = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
+                const logs = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                 const warns = db.prepare('SELECT * FROM warns WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                 const { embed, components } = buildHistoryPanel(logs, warns, target, 0, filter);
 
@@ -167,13 +167,13 @@ module.exports = {
                 const [source, id] = interaction.values[0].split(':');
                 const guildId = interaction.guild.id;
 
-                if (source === 'mod')  db.prepare('DELETE FROM mod_logs WHERE id = ? AND guild_id = ?').run(parseInt(id), guildId);
+                if (source === 'mod') db.prepare('DELETE FROM mod_logs WHERE id = ? AND guild_id = ?').run(parseInt(id), guildId);
                 if (source === 'warn') db.prepare('DELETE FROM warns WHERE id = ? AND guild_id = ?').run(parseInt(id), guildId);
 
                 const target = await interaction.client.users.fetch(userId).catch(() => null);
                 if (!target) return interaction.update({ content: '✅ Entrada eliminada.', embeds: [], components: [] });
 
-                const logs  = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
+                const logs = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                 const warns = db.prepare('SELECT * FROM warns WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                 const totalPages = Math.ceil((logs.length + warns.length) / 4);
                 const newPage = Math.min(parseInt(pageStr), Math.max(totalPages - 1, 0));
@@ -270,8 +270,8 @@ module.exports = {
                         .setTitle('📄 Transcript Generado')
                         .addFields(
                             { name: '👤 Propietario', value: ownerId ? `<@${ownerId}>` : 'Desconocido', inline: true },
-                            { name: '🔒 Cerrado por',  value: interaction.user.tag,                     inline: true },
-                            { name: '📂 Canal',        value: channel.name,                             inline: true }
+                            { name: '🔒 Cerrado por', value: interaction.user.tag, inline: true },
+                            { name: '📂 Canal', value: channel.name, inline: true }
                         )
                         .setColor('#F1C40F').setTimestamp();
 
@@ -368,7 +368,7 @@ module.exports = {
                     const target = await interaction.client.users.fetch(userId).catch(() => null);
                     if (!target) return interaction.update({ content: '❌ Usuario no encontrado.', embeds: [], components: [] });
 
-                    const logs  = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
+                    const logs = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                     const warns = db.prepare('SELECT * FROM warns WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                     const { embed, components } = buildHistoryPanel(logs, warns, target, parseInt(pageStr), filter);
                     return interaction.update({ content: null, embeds: [embed], components });
@@ -378,7 +378,7 @@ module.exports = {
                     const [, userId] = interaction.customId.split(':');
                     const guildId = interaction.guild.id;
 
-                    const logsCount  = db.prepare('SELECT COUNT(*) as count FROM mod_logs WHERE guild_id = ? AND user_id = ?').get(guildId, userId).count;
+                    const logsCount = db.prepare('SELECT COUNT(*) as count FROM mod_logs WHERE guild_id = ? AND user_id = ?').get(guildId, userId).count;
                     const warnsCount = db.prepare('SELECT COUNT(*) as count FROM warns WHERE guild_id = ? AND user_id = ?').get(guildId, userId).count;
 
                     db.prepare('DELETE FROM mod_logs WHERE guild_id = ? AND user_id = ?').run(guildId, userId);
@@ -398,7 +398,7 @@ module.exports = {
                     const target = await interaction.client.users.fetch(userId).catch(() => null);
                     if (!target) return interaction.update({ content: '❌ Usuario no encontrado.', embeds: [], components: [] });
 
-                    const logs  = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
+                    const logs = db.prepare('SELECT * FROM mod_logs WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                     const warns = db.prepare('SELECT * FROM warns WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId);
                     const { embed, components } = buildHistoryPanel(logs, warns, target, 0, 'all');
                     return interaction.update({ content: null, embeds: [embed], components });
@@ -407,7 +407,7 @@ module.exports = {
                 // ── LEADERBOARD ──────────────────────────────────────────
 
                 if (interaction.customId.startsWith('lb_page:')) {
-                    const page    = parseInt(interaction.customId.split(':')[1]);
+                    const page = parseInt(interaction.customId.split(':')[1]);
                     const guildId = interaction.guild.id;
 
                     const entries = db.prepare('SELECT * FROM levels WHERE guild_id = ? ORDER BY level DESC, xp DESC').all(guildId);
@@ -425,8 +425,8 @@ module.exports = {
                 // ── SUGERENCIAS ──────────────────────────────────────────
 
                 if (interaction.customId.startsWith('suggest_up_') || interaction.customId.startsWith('suggest_down_')) {
-                    const isUp   = interaction.customId.startsWith('suggest_up_');
-                    const id     = parseInt(interaction.customId.split('_')[2]);
+                    const isUp = interaction.customId.startsWith('suggest_up_');
+                    const id = parseInt(interaction.customId.split('_')[2]);
                     const userId = interaction.user.id;
 
                     const sug = db.prepare('SELECT * FROM suggestions WHERE id = ?').get(id);
@@ -434,14 +434,14 @@ module.exports = {
                         return interaction.reply({ content: '❌ Esta sugerencia ya no está activa.', ephemeral: true });
                     }
 
-                    let up   = JSON.parse(sug.votes_up);
+                    let up = JSON.parse(sug.votes_up);
                     let down = JSON.parse(sug.votes_down);
 
-                    up   = up.filter(u => u !== userId);
+                    up = up.filter(u => u !== userId);
                     down = down.filter(u => u !== userId);
 
                     if (isUp) up.push(userId);
-                    else      down.push(userId);
+                    else down.push(userId);
 
                     db.prepare('UPDATE suggestions SET votes_up = ?, votes_down = ? WHERE id = ?')
                         .run(JSON.stringify(up), JSON.stringify(down), id);
@@ -449,9 +449,64 @@ module.exports = {
                     const author = await interaction.client.users.fetch(sug.author_id).catch(() => null);
 
                     return interaction.update({
-                        embeds:     [buildEmbed(author, sug.content, id, up, down)],
+                        embeds: [buildEmbed(author, sug.content, id, up, down)],
                         components: [buildVoteRow(id, up.length, down.length)]
                     });
+                }
+
+                // ── REPORTES ─────────────────────────────────────────────
+
+                if (interaction.customId.startsWith('report_resolve_') ||
+                    interaction.customId.startsWith('report_mute_') ||
+                    interaction.customId.startsWith('report_ban_') ||
+                    interaction.customId.startsWith('report_dismiss_')) {
+
+                    if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+                        return interaction.reply({ content: '❌ Solo el staff puede gestionar reportes.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    const parts = interaction.customId.split('_');
+                    const action = parts[1]; // resolve, mute, ban, dismiss
+                    const reportId = parseInt(parts[2]);
+
+                    const report = db.prepare('SELECT * FROM reports WHERE id = ?').get(reportId);
+                    if (!report || report.status !== 'pending') {
+                        return interaction.reply({ content: '❌ Este reporte ya fue gestionado.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    const statusMap = {
+                        resolve: { status: 'resolved', label: '✅ Resuelto', color: '#57F287' },
+                        mute: { status: 'muted', label: '🔇 Muteado', color: '#FEE75C' },
+                        ban: { status: 'banned', label: '🔨 Baneado', color: '#ED4245' },
+                        dismiss: { status: 'dismissed', label: '❌ Descartado', color: '#95A5A6' }
+                    };
+
+                    const { status, label, color } = statusMap[action];
+                    db.prepare('UPDATE reports SET status = ?, handled_by = ? WHERE id = ?').run(status, interaction.user.id, reportId);
+
+                    // Ejecutar acción si aplica
+                    if (action === 'mute' || action === 'ban') {
+                        const targetMember = await interaction.guild.members.fetch(report.reported_id).catch(() => null);
+                        if (targetMember) {
+                            if (action === 'mute') {
+                                await targetMember.timeout(10 * 60 * 1000, `Reporte #${reportId} gestionado por ${interaction.user.tag}`).catch(() => null);
+                            }
+                            if (action === 'ban') {
+                                await targetMember.ban({ reason: `Reporte #${reportId} gestionado por ${interaction.user.tag}` }).catch(() => null);
+                            }
+                        }
+                    }
+
+                    // Actualizar embed
+                    const updatedEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+                        .setColor(color)
+                        .spliceFields(5, 1, {
+                            name: '📊 Estado',
+                            value: `${label} por ${interaction.user}`,
+                            inline: true
+                        });
+
+                    await interaction.update({ embeds: [updatedEmbed], components: [] });
                 }
 
             } catch (error) {
