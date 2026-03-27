@@ -5,31 +5,31 @@ const db = new Database(path.join(__dirname, 'database.sqlite'));
 
 db.prepare(`
     CREATE TABLE IF NOT EXISTS guild_settings (
-        guild_id             TEXT PRIMARY KEY,
-        welcome_channel      TEXT,
-        staff_role           TEXT,
-        prefix               TEXT DEFAULT '/',
-        ticket_log_channel   TEXT,
-        ticket_embed_msg     TEXT,
-        ticket_embed_image   TEXT,
-        ticket_welcome_msg   TEXT,
-        audit_log_channel    TEXT,
-        general_log_channel  TEXT,
-        ticket_dm_preference INTEGER DEFAULT 0,
-        ticket_category      TEXT,
-        ticket_count         INTEGER DEFAULT 0,
-        ticket_types         TEXT,
-        automod_enabled      INTEGER DEFAULT 0,
-        automod_log_channel  TEXT,
-        automod_anti_spam    INTEGER DEFAULT 0,
-        automod_spam_limit   INTEGER DEFAULT 5,
+        guild_id              TEXT PRIMARY KEY,
+        welcome_channel       TEXT,
+        staff_role            TEXT,
+        prefix                TEXT DEFAULT '/',
+        ticket_log_channel    TEXT,
+        ticket_embed_msg      TEXT,
+        ticket_embed_image    TEXT,
+        ticket_welcome_msg    TEXT,
+        audit_log_channel     TEXT,
+        general_log_channel   TEXT,
+        ticket_dm_preference  INTEGER DEFAULT 0,
+        ticket_category       TEXT,
+        ticket_count          INTEGER DEFAULT 0,
+        ticket_types          TEXT,
+        automod_enabled       INTEGER DEFAULT 0,
+        automod_log_channel   TEXT,
+        automod_anti_spam     INTEGER DEFAULT 0,
+        automod_spam_limit    INTEGER DEFAULT 5,
         automod_spam_interval INTEGER DEFAULT 5000,
-        automod_anti_links   INTEGER DEFAULT 0,
-        automod_anti_invites INTEGER DEFAULT 0,
-        automod_bad_words    TEXT DEFAULT '[]',
-        warn_mute_threshold  INTEGER DEFAULT 3,
-        warn_ban_threshold   INTEGER DEFAULT 5,
-        warn_mute_duration   INTEGER DEFAULT 3600000
+        automod_anti_links    INTEGER DEFAULT 0,
+        automod_anti_invites  INTEGER DEFAULT 0,
+        automod_bad_words     TEXT DEFAULT '[]',
+        warn_mute_threshold   INTEGER DEFAULT 3,
+        warn_ban_threshold    INTEGER DEFAULT 5,
+        warn_mute_duration    INTEGER DEFAULT 3600000
     )
 `).run();
 
@@ -103,7 +103,6 @@ db.prepare(`
     )
 `).run();
 
-// ➕ Tabla: reportes
 db.prepare(`
     CREATE TABLE IF NOT EXISTS reports (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,9 +154,14 @@ const requiredColumns = {
     xp_levelup_img:        'TEXT',
     suggest_channel:       'TEXT',
     suggest_log_channel:   'TEXT',
-    // ➕ Reportes
     report_channel:        'TEXT',
-    report_cooldown:       'INTEGER DEFAULT 300'
+    report_cooldown:       'INTEGER DEFAULT 300',
+    // ➕ Bienvenida mejorada
+    welcome_message:       "TEXT DEFAULT '¡Bienvenido {user} a {server}!'",
+    welcome_background:    'TEXT',
+    welcome_color:         "TEXT DEFAULT '#5865F2'",
+    welcome_role:          'TEXT',
+    welcome_enabled:       'INTEGER DEFAULT 1'
 };
 
 for (const [col, type] of Object.entries(requiredColumns)) {
