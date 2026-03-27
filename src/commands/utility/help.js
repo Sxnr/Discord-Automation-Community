@@ -1,6 +1,6 @@
-const { 
-    SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, 
-    StringSelectMenuBuilder, MessageFlags 
+const {
+    SlashCommandBuilder, EmbedBuilder, ActionRowBuilder,
+    StringSelectMenuBuilder, MessageFlags
 } = require('discord.js'); // ➕ FIX: MessageFlags importado
 
 module.exports = {
@@ -14,10 +14,10 @@ module.exports = {
         const commands = client.commands;
 
         const totalCommands = commands.size;
-        const adminCount    = commands.filter(cmd => cmd.category === 'admin').size;
-        const utilityCount  = commands.filter(cmd => cmd.category === 'utility').size;
-        const guildIcon     = interaction.guild.iconURL({ dynamic: true });
-        const botAvatar     = client.user.displayAvatarURL();
+        const adminCount = commands.filter(cmd => cmd.category === 'admin').size;
+        const utilityCount = commands.filter(cmd => cmd.category === 'utility').size;
+        const guildIcon = interaction.guild.iconURL({ dynamic: true });
+        const botAvatar = client.user.displayAvatarURL();
 
         const helpMainEmbed = new EmbedBuilder()
             .setTitle(`${client.user.username} • Centro de Comandos`)
@@ -57,7 +57,12 @@ module.exports = {
                         `> \`/setup-tickets\` — Sistema de tickets\n` +
                         `> \`/giveaway start\` — Iniciar un sorteo\n` +
                         `> \`/automod status\` — Estado del automod\n` +
-                        `> \`/warn add\` — Advertir a un usuario`,
+                        `> \`/automod config\` — Configurar automod\n` +
+                        `> \`/warn add\` — Advertir a un usuario\n` +
+                        `> \`/warn list\` — Ver historial de warns\n` +
+                        `> \`/mod ban\` — Banear usuario\n` +
+                        `> \`/mod mute\` — Silenciar usuario\n` +
+                        `> \`/mod history\` — Historial de moderación`,
                     inline: false
                 }
             )
@@ -73,24 +78,22 @@ module.exports = {
             .setPlaceholder('📂 Selecciona una categoría...')
             .addOptions([
                 {
-                    label: 'Administración',
-                    description: `${adminCount} comandos — tickets, sorteos, warns, automod.`,
-                    value: 'admin',
-                    emoji: '🛡️',
+                    name: '🛡️ Administración',
+                    value: `Tickets, sorteos, warns, baneos, mutes, automod y configuración.\n> \`${adminCount} comandos\``,
+                    inline: true
                 },
                 {
-                    label: 'Utilidad',
-                    description: `${utilityCount} comandos — diagnóstico y asistencia.`,
-                    value: 'utility',
-                    emoji: '🛠️',
+                    name: '🛠️ Utilidad',
+                    value: `Herramientas de diagnóstico, estado y asistencia general.\n> \`${utilityCount} comandos\``,
+                    inline: true
                 },
             ]);
 
         const row = new ActionRowBuilder().addComponents(menu);
 
-        await interaction.reply({ 
-            embeds: [helpMainEmbed], 
-            components: [row], 
+        await interaction.reply({
+            embeds: [helpMainEmbed],
+            components: [row],
             flags: [MessageFlags.Ephemeral]
         });
     },
