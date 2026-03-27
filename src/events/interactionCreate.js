@@ -509,6 +509,80 @@ module.exports = {
                     await interaction.update({ embeds: [updatedEmbed], components: [] });
                 }
 
+                // ── POLLS ─────────────────────────────────────────────────────────────────
+
+                if (interaction.customId.startsWith('poll_vote_')) {
+                    const parts = interaction.customId.split('_');  // poll_vote_{id}_{idx}
+                    const pollId = parseInt(parts[2]);
+                    const optIdx = parseInt(parts[3]);
+
+                    const poll = db.prepare('SELECT * FROM polls WHERE id = ?').get(pollId);
+                    if (!poll || poll.ended) {
+                        return interaction.reply({ content: '❌ Esta encuesta ya está cerrada.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    const voters = JSON.parse(poll.voters);
+                    const votes = JSON.parse(poll.votes);
+                    const userId = interaction.user.id;
+
+                    // Quitar voto anterior si ya votó
+                    for (const key of Object.keys(votes)) {
+                        votes[key] = votes[key].filter(u => u !== userId);
+                    }
+
+                    // Verificar si ya votó por la misma opción (toggle)
+                    const alreadyVoted = voters.includes(userId) && !votes[String(optIdx)].includes(userId);
+
+                    if (!voters.includes(userId)) voters.push(userId);
+                    votes[String(optIdx)].push(userId);
+
+                    db.prepare('UPDATE polls SET votes = ?, voters = ? WHERE id = ?')
+                        .run(JSON.stringify(votes), JSON.stringify(voters), pollId);
+
+                    const updated = db.prepare('SELECT * FROM polls WHERE id = ?').get(pollId);
+                    const opts = JSON.parse(updated.options);
+
+                    const { buildPollEmbed, buildPollButtons } = require('../commands/utility/poll');
+
+                    return interaction.update({
+                        embeds: [buildPollEmbed(updated, interaction.guild)],
+                        components: buildPollButtons(pollId, opts)
+                    });
+                }
+
+                if (interaction.customId.startsWith('poll_results_')) {
+                    const pollId = parseInt(interaction.customId.split('_')[2]);
+                    const poll = db.prepare('SELECT * FROM polls WHERE id = ?').get(pollId);
+                    if (!poll) return interaction.reply({ content: '❌ Encuesta no encontrada.', flags: [MessageFlags.Ephemeral] });
+
+                    const { buildPollEmbed } = require('../commands/utility/poll');
+                    return interaction.reply({
+                        embeds: [buildPollEmbed(poll, interaction.guild)],
+                        flags: [MessageFlags.Ephemeral]
+                    });
+                }
+
+                if (interaction.customId.startsWith('poll_close_')) {
+                    const pollId = parseInt(interaction.customId.split('_')[2]);
+                    const poll = db.prepare('SELECT * FROM polls WHERE id = ?').get(pollId);
+                    if (!poll || poll.ended) return interaction.reply({ content: '❌ Esta encuesta ya está cerrada.', flags: [MessageFlags.Ephemeral] });
+
+                    if (poll.author_id !== interaction.user.id && !interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+                        return interaction.reply({ content: '❌ Solo el autor o un moderador puede cerrar esta encuesta.', flags: [MessageFlags.Ephemeral] });
+                    }
+
+                    db.prepare('UPDATE polls SET ended = 1 WHERE id = ?').run(pollId);
+                    const updated = db.prepare('SELECT * FROM polls WHERE id = ?').get(pollId);
+                    const opts = JSON.parse(updated.options);
+
+                    const { buildPollEmbed, buildPollButtons } = require('../commands/utility/poll');
+
+                    return interaction.update({
+                        embeds: [buildPollEmbed(updated, interaction.guild)],
+                        components: buildPollButtons(pollId, opts, true)
+                    });
+                }
+
             } catch (error) {
                 console.error('❌ Error en interacción:', error);
                 const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
