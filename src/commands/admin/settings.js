@@ -11,6 +11,9 @@ module.exports = {
         .addChannelOption(opt => opt.setName('welcome_channel').setDescription('👋 Canal para los mensajes de bienvenida.'))
         .addChannelOption(opt => opt.setName('ticket_logs').setDescription('📜 Canal para los respaldos (transcripts) de tickets.'))
         .addChannelOption(opt => opt.setName('audit_logs').setDescription('🛡️ Canal para logs de auditoría (mensajes borrados/editados).'))
+        // ➕ NUEVAS OPCIONES
+        .addChannelOption(opt => opt.setName('general_logs').setDescription('📊 Canal para logs generales (entradas/salidas de miembros, voz).'))
+        .addChannelOption(opt => opt.setName('ticket_category').setDescription('📁 Categoría de Discord donde se crearán los canales de tickets.'))
         // Grupo: Roles
         .addRoleOption(opt => opt.setName('staff_role').setDescription('🛡️ Rol asignado para la gestión de tickets.'))
         // Grupo: Sistema
@@ -20,20 +23,23 @@ module.exports = {
         await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
         const guildId = interaction.guild.id;
 
-        const welcomeChannel = interaction.options.getChannel('welcome_channel');
-        const ticketLogs = interaction.options.getChannel('ticket_logs');
-        const auditLogs = interaction.options.getChannel('audit_logs');
-        const staffRole = interaction.options.getRole('staff_role');
-        const isViewMode = interaction.options.getBoolean('view');
+        const welcomeChannel  = interaction.options.getChannel('welcome_channel');
+        const ticketLogs      = interaction.options.getChannel('ticket_logs');
+        const auditLogs       = interaction.options.getChannel('audit_logs');
+        const staffRole       = interaction.options.getRole('staff_role');
+        const isViewMode      = interaction.options.getBoolean('view');
+        // ➕ NUEVAS
+        const generalLogs     = interaction.options.getChannel('general_logs');
+        const ticketCategory  = interaction.options.getChannel('ticket_category');
 
-        // 1. Cláusula de Guardia: Si no hay parámetros
-        if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole && !auditLogs) {
+        // 1. Cláusula de Guardia
+        if (!isViewMode && !welcomeChannel && !ticketLogs && !staffRole && !auditLogs && !generalLogs && !ticketCategory) {
             return interaction.editReply({
                 content: '⚠️ **Acción requerida:** Selecciona una opción para modificar o activa `view: True` para consultar.'
             });
         }
 
-        // 2. Lógica de Visualización (Dashboard)
+        // 2. Modo Visualización (Dashboard)
         if (isViewMode) {
             const config = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
 
@@ -42,7 +48,7 @@ module.exports = {
             }
 
             const statusEmoji = (val) => val ? '✅' : '❌';
-            const statusText = (val) => val ? '`ACTIVO`' : '`PENDIENTE`';
+            const statusText  = (val) => val ? '`ACTIVO`' : '`PENDIENTE`';
 
             const dashboardEmbed = new EmbedBuilder()
                 .setTitle(`🛠️ Panel de Configuración | ${interaction.guild.name}`)
@@ -64,6 +70,17 @@ module.exports = {
                         name: '🎨 Personalización del Panel', 
                         value: `📝 **Mensaje:** \`${config.ticket_embed_msg ? 'Personalizado' : 'Default'}\`\n🖼️ **Imagen:** \`${config.ticket_embed_image ? 'Establecida' : 'Sin imagen'}\``, 
                         inline: false 
+                    },
+                    // ➕ NUEVOS CAMPOS EN EL DASHBOARD
+                    {
+                        name: '🎫 Sistema de Tickets',
+                        value: `${statusEmoji(config.ticket_category)} **Categoría:** ${config.ticket_category ? `<#${config.ticket_category}>` : statusText(false)}\n📋 **Tipos:** \`${config.ticket_types || 'Sin tipos (directo)'}\`\n📩 **DM Transcript:** ${config.ticket_dm_preference ? '`ACTIVO` ✅' : '`DESACTIVADO` ❌'}`,
+                        inline: false
+                    },
+                    {
+                        name: '📊 Logs Generales',
+                        value: `${statusEmoji(config.general_log_channel)} **Canal:** ${config.general_log_channel ? `<#${config.general_log_channel}>` : statusText(false)}`,
+                        inline: false
                     }
                 )
                 .setFooter({ text: 'Use /settings con parámetros para actualizar valores.', iconURL: interaction.client.user.displayAvatarURL() })
@@ -92,12 +109,21 @@ module.exports = {
             db.prepare('UPDATE guild_settings SET staff_role = ? WHERE guild_id = ?').run(staffRole.id, guildId);
             changes.push(`- **Rol de Staff:** → ${staffRole}`);
         }
+        // ➕ NUEVAS ACTUALIZACIONES
+        if (generalLogs) {
+            db.prepare('UPDATE guild_settings SET general_log_channel = ? WHERE guild_id = ?').run(generalLogs.id, guildId);
+            changes.push(`- **Logs Generales:** → ${generalLogs}`);
+        }
+        if (ticketCategory) {
+            db.prepare('UPDATE guild_settings SET ticket_category = ? WHERE guild_id = ?').run(ticketCategory.id, guildId);
+            changes.push(`- **Categoría de Tickets:** → ${ticketCategory}`);
+        }
 
         const successEmbed = new EmbedBuilder()
             .setTitle('✅ Sincronización Exitosa')
             .setDescription(`Se han aplicado los siguientes cambios en la configuración:\n\n${changes.join('\n')}`)
             .setColor('#2ECC71')
-            .setThumbnail('https://cdn-icons-png.flaticon.com/512/190/190411.png') 
+            .setThumbnail('https://cdn-icons-png.flaticon.com/512/190/190411.png')
             .setFooter({ text: 'Los cambios surten efecto de manera inmediata.' });
 
         await interaction.editReply({ embeds: [successEmbed] });
