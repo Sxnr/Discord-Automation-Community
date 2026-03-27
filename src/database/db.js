@@ -491,7 +491,7 @@ const requiredColumns  = {
     // 💰 economía
     economy_enabled:       'INTEGER DEFAULT 1',
     economy_currency:      "TEXT DEFAULT 'coins'",
-    economy_currency_emoji:'TEXT DEFAULT '💰'',
+    economy_currency_emoji: "TEXT DEFAULT '💰'",
     economy_daily_amount:  'INTEGER DEFAULT 200',
     economy_daily_streak_bonus: 'INTEGER DEFAULT 50',
     economy_work_min:      'INTEGER DEFAULT 50',
