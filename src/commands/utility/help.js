@@ -1,7 +1,7 @@
 const {
     SlashCommandBuilder, EmbedBuilder, ActionRowBuilder,
     StringSelectMenuBuilder, MessageFlags
-} = require('discord.js'); // ➕ FIX: MessageFlags importado
+} = require('discord.js');
 
 module.exports = {
     category: 'utility',
@@ -11,13 +11,13 @@ module.exports = {
 
     async execute(interaction) {
         const { client } = interaction;
-        const commands = client.commands;
+        const commands    = client.commands;
 
         const totalCommands = commands.size;
-        const adminCount = commands.filter(cmd => cmd.category === 'admin').size;
-        const utilityCount = commands.filter(cmd => cmd.category === 'utility').size;
-        const guildIcon = interaction.guild.iconURL({ dynamic: true });
-        const botAvatar = client.user.displayAvatarURL();
+        const adminCount    = commands.filter(cmd => cmd.category === 'admin').size;
+        const utilityCount  = commands.filter(cmd => cmd.category === 'utility').size;
+        const guildIcon     = interaction.guild.iconURL({ dynamic: true });
+        const botAvatar     = client.user.displayAvatarURL();
 
         const helpMainEmbed = new EmbedBuilder()
             .setTitle(`${client.user.username} • Centro de Comandos`)
@@ -42,7 +42,7 @@ module.exports = {
                 },
                 {
                     name: '🛡️ Administración',
-                    value: `Tickets, sorteos, warns, automod y configuración del servidor.\n> \`${adminCount} comandos\``,
+                    value: `Tickets, sorteos, warns, baneos, mutes, automod y configuración.\n> \`${adminCount} comandos\``,
                     inline: true
                 },
                 {
@@ -66,7 +66,7 @@ module.exports = {
                     inline: false
                 }
             )
-            .setImage('https://media.discordapp.net/attachments/1380335501776654357/1487156050288312330/Floppa_GIF_-_Floppa_-_Discover__Share_GIFs.gif?ex=69c81d80&is=69c6cc00&hm=3038db4586311e89424f249f06ddc2ed1cf3e1ecb74bb57d20526feefb2a725d&=') // opcional: cambia o elimina esta línea
+            .setImage('https://media.discordapp.net/attachments/1380335501776654357/1487156050288312330/Floppa_GIF_-_Floppa_-_Discover__Share_GIFs.gif?ex=69c81d80&is=69c6cc00&hm=3038db4586311e89424f249f06ddc2ed1cf3e1ecb74bb57d20526feefb2a725d&=')
             .setFooter({
                 text: `${interaction.guild.name}  •  ${totalCommands} comandos disponibles`,
                 iconURL: guildIcon
@@ -78,23 +78,25 @@ module.exports = {
             .setPlaceholder('📂 Selecciona una categoría...')
             .addOptions([
                 {
-                    name: '🛡️ Administración',
-                    value: `Tickets, sorteos, warns, baneos, mutes, automod y configuración.\n> \`${adminCount} comandos\``,
-                    inline: true
+                    label:       'Administración',
+                    description: `Tickets, warns, baneos, mutes, automod y más. ${adminCount} comandos.`,
+                    value:       'admin',
+                    emoji:       '🛡️',
                 },
                 {
-                    name: '🛠️ Utilidad',
-                    value: `Herramientas de diagnóstico, estado y asistencia general.\n> \`${utilityCount} comandos\``,
-                    inline: true
+                    label:       'Utilidad',
+                    description: `Diagnóstico, estado y asistencia general. ${utilityCount} comandos.`,
+                    value:       'utility',
+                    emoji:       '🛠️',
                 },
             ]);
 
         const row = new ActionRowBuilder().addComponents(menu);
 
         await interaction.reply({
-            embeds: [helpMainEmbed],
+            embeds:     [helpMainEmbed],
             components: [row],
-            flags: [MessageFlags.Ephemeral]
+            flags:      [MessageFlags.Ephemeral]
         });
     },
 };
