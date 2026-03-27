@@ -15,35 +15,40 @@ module.exports = {
         // Opciones de privacidad/lógica
         .addBooleanOption(opt => opt.setName('dm_transcript').setDescription('📩 ¿Enviar una copia del historial al usuario por mensaje privado?').setRequired(true))
         // Estética
-        .addStringOption(opt => opt.setName('imagen').setDescription('🖼️ URL de una imagen decorativa para el panel (Opcional)')),
+        .addStringOption(opt => opt.setName('imagen').setDescription('🖼️ URL de una imagen decorativa para el panel (Opcional)'))
+        // ➕ NUEVAS OPCIONES
+        .addChannelOption(opt => opt.setName('categoria').setDescription('📁 Categoría de Discord donde se crearán los canales de tickets. (Opcional)'))
+        .addStringOption(opt => opt.setName('tipos').setDescription('📋 Tipos de ticket separados por coma. Ej: Soporte,Reporte,Apelación (Opcional)')),
 
     async execute(interaction) {
-        // Iniciamos con defer para procesos de DB y envío de mensajes
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            const canal = interaction.options.getChannel('canal');
-            const mensaje = interaction.options.getString('mensaje');
+            const canal      = interaction.options.getChannel('canal');
+            const mensaje    = interaction.options.getString('mensaje');
             const bienvenida = interaction.options.getString('bienvenida');
             const dmTranscript = interaction.options.getBoolean('dm_transcript');
-            const imagen = interaction.options.getString('imagen');
-            const guildId = interaction.guild.id;
+            const imagen     = interaction.options.getString('imagen');
+            const guildId    = interaction.guild.id;
+            // ➕ NUEVAS
+            const categoria  = interaction.options.getChannel('categoria');
+            const tipos      = interaction.options.getString('tipos');
 
             // 1. Sincronización con la Base de Datos
             db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)').run(guildId);
             
-            const updateStmt = db.prepare(`
+            db.prepare(`
                 UPDATE guild_settings 
-                SET ticket_embed_msg = ?, 
-                    ticket_welcome_msg = ?, 
-                    ticket_embed_image = ?, 
-                    ticket_dm_preference = ?
+                SET ticket_embed_msg      = ?, 
+                    ticket_welcome_msg    = ?, 
+                    ticket_embed_image    = ?, 
+                    ticket_dm_preference  = ?,
+                    ticket_category       = ?,
+                    ticket_types          = ?
                 WHERE guild_id = ?
-            `);
-            
-            updateStmt.run(mensaje, bienvenida, imagen, dmTranscript ? 1 : 0, guildId);
+            `).run(mensaje, bienvenida, imagen, dmTranscript ? 1 : 0, categoria?.id || null, tipos || null, guildId);
 
-            // 2. Creación del Panel de Soporte (El que verán los usuarios)
+            // 2. Creación del Panel de Soporte
             const panelEmbed = new EmbedBuilder()
                 .setTitle('📩 Centro de Atención al Usuario')
                 .setDescription(`>>> ${mensaje}`)
@@ -66,15 +71,18 @@ module.exports = {
             // 3. Envío del panel al canal destino
             await canal.send({ embeds: [panelEmbed], components: [row] });
 
-            // 4. Feedback visual para el Administrador (Estilo Premium)
+            // 4. Feedback para el Administrador
             const successEmbed = new EmbedBuilder()
                 .setTitle('🚀 Sistema de Tickets Desplegado')
                 .setColor('#2ECC71')
                 .setDescription('El panel ha sido configurado y enviado correctamente.')
                 .addFields(
-                    { name: '📍 Canal de Destino', value: `${canal}`, inline: true },
-                    { name: '📩 Transcripts DM', value: dmTranscript ? '`HABILITADO` ✅' : '`DESACTIVADO` ❌', inline: true },
-                    { name: '👋 Bienvenida Configurada', value: '`SÍ` ✅', inline: true }
+                    { name: '📍 Canal de Destino',    value: `${canal}`,                                              inline: true },
+                    { name: '📩 Transcripts DM',      value: dmTranscript ? '`HABILITADO` ✅' : '`DESACTIVADO` ❌',   inline: true },
+                    { name: '👋 Bienvenida',           value: '`Configurada` ✅',                                      inline: true },
+                    // ➕ NUEVOS CAMPOS
+                    { name: '📁 Categoría',            value: categoria ? `${categoria}` : '`Sin categoría`',          inline: true },
+                    { name: '📋 Tipos de Ticket',      value: tipos ? `\`${tipos}\`` : '`Ticket directo`',             inline: true }
                 )
                 .addFields({
                     name: '📄 Vista Previa del Mensaje',
