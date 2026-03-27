@@ -4,6 +4,8 @@ const path = require('node:path');
 const config = require('./config.js');
 const birthdayChecker = require('./events/birthdayChecker');
 client.once(birthdayChecker.name, (...args) => birthdayChecker.execute(...args));
+const reminderLoader = require('./events/reminderLoader');
+client.once(reminderLoader.name, (...args) => reminderLoader.execute(...args));
 
 const client = new Client({
     intents: [
