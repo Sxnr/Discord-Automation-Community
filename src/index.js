@@ -12,13 +12,14 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        // ➕ Necesarios para auditLogs.js
+        GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildModeration,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildInvites,
         GatewayIntentBits.GuildPresences
-    ]
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
 client.commands = new Collection();

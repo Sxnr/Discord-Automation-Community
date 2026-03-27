@@ -4,6 +4,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const db = require('../../database/db');
+const { checkAndUnlock } = require('./achievements');
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function getEconomy(guildId, userId) {
@@ -34,7 +35,7 @@ function logTransaction(guildId, userId, type, amount, detail = null) {
 function fmt(guildId, amount) {
     const s = getSettings(guildId);
     const emoji = s?.economy_currency_emoji || '💰';
-    const name  = s?.economy_currency      || 'coins';
+    const name = s?.economy_currency || 'coins';
     return `${emoji} **${amount.toLocaleString('es-CL')}** ${name}`;
 }
 
@@ -52,22 +53,22 @@ function random(min, max) {
 }
 
 const WORK_PHRASES = [
-    'Repartiste pizzas',      'Limpiaste ventanas',     'Hiciste delivery',
-    'Programaste una web',    'Vendiste empanadas',      'Cuidaste mascotas',
-    'Diste clases de inglés', 'Manejaste un taxi',       'Arreglaste computadores',
-    'Diseñaste un logo',      'Fotografiaste un evento', 'Tocaste guitarra en la plaza',
+    'Repartiste pizzas', 'Limpiaste ventanas', 'Hiciste delivery',
+    'Programaste una web', 'Vendiste empanadas', 'Cuidaste mascotas',
+    'Diste clases de inglés', 'Manejaste un taxi', 'Arreglaste computadores',
+    'Diseñaste un logo', 'Fotografiaste un evento', 'Tocaste guitarra en la plaza',
 ];
 
 const CRIME_SUCCESS = [
-    'Hackeaste un cajero automático',  'Vendiste objetos "sin factura"',
-    'Ganaste en una apuesta ilegal',   'Robaste señales de WiFi ajenas',
+    'Hackeaste un cajero automático', 'Vendiste objetos "sin factura"',
+    'Ganaste en una apuesta ilegal', 'Robaste señales de WiFi ajenas',
     'Falsificaste un boleto de metro', 'Revendiste entradas a precio inflado',
 ];
 
 const CRIME_FAIL = [
     'Te cacharon robando papas fritas', 'Resbalaste huyendo de la guardia',
-    'Tu cómplice te delató',           'Dejaste la billetera en la escena del crimen',
-    'El policía era tu vecino',        'Tu captura salió en el noticiero local',
+    'Tu cómplice te delató', 'Dejaste la billetera en la escena del crimen',
+    'El policía era tu vecino', 'Tu captura salió en el noticiero local',
 ];
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -178,13 +179,13 @@ module.exports = {
                 .setDescription('Qué configurar')
                 .setRequired(true)
                 .addChoices(
-                    { name: '💰 Nombre moneda',          value: 'currency'       },
-                    { name: '🎨 Emoji moneda',           value: 'emoji'          },
-                    { name: '📅 Daily amount',           value: 'daily_amount'   },
-                    { name: '💼 Work cooldown (min)',    value: 'work_cooldown'  },
-                    { name: '🔫 Crime cooldown (min)',   value: 'crime_cooldown' },
-                    { name: '🎰 Habilitar/deshabilitar', value: 'toggle'         },
-                    { name: '📢 Canal de logs',          value: 'log_channel'    },
+                    { name: '💰 Nombre moneda', value: 'currency' },
+                    { name: '🎨 Emoji moneda', value: 'emoji' },
+                    { name: '📅 Daily amount', value: 'daily_amount' },
+                    { name: '💼 Work cooldown (min)', value: 'work_cooldown' },
+                    { name: '🔫 Crime cooldown (min)', value: 'crime_cooldown' },
+                    { name: '🎰 Habilitar/deshabilitar', value: 'toggle' },
+                    { name: '📢 Canal de logs', value: 'log_channel' },
                 )
             )
             .addStringOption(o => o.setName('valor').setDescription('Valor a asignar').setRequired(true))
@@ -211,10 +212,10 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const sub     = interaction.options.getSubcommand();
+        const sub = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
-        const userId  = interaction.user.id;
-        const cfg     = getSettings(guildId);
+        const userId = interaction.user.id;
+        const cfg = getSettings(guildId);
 
         if (cfg.economy_enabled === 0 && !['config'].includes(sub)) {
             return interaction.reply({ content: '❌ La economía está desactivada en este servidor.', flags: [MessageFlags.Ephemeral] });
@@ -225,8 +226,8 @@ module.exports = {
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'balance') {
             const target = interaction.options.getUser('usuario') || interaction.user;
-            const eco    = getEconomy(guildId, target.id);
-            const total  = eco.wallet + eco.bank;
+            const eco = getEconomy(guildId, target.id);
+            const total = eco.wallet + eco.bank;
 
             const rank = db.prepare(`
                 SELECT COUNT(*) as r FROM economy
@@ -238,11 +239,11 @@ module.exports = {
                 .setThumbnail(target.displayAvatarURL({ dynamic: true }))
                 .setColor(cfg.welcome_color || '#5865F2')
                 .addFields(
-                    { name: '👜 Cartera',         value: fmt(guildId, eco.wallet), inline: true },
-                    { name: '🏦 Banco',            value: fmt(guildId, eco.bank),   inline: true },
-                    { name: '💎 Total',            value: fmt(guildId, total),      inline: true },
-                    { name: '📈 Total ganado',     value: fmt(guildId, eco.total_earned), inline: true },
-                    { name: '🏆 Posición global', value: `#${rank}`,               inline: true },
+                    { name: '👜 Cartera', value: fmt(guildId, eco.wallet), inline: true },
+                    { name: '🏦 Banco', value: fmt(guildId, eco.bank), inline: true },
+                    { name: '💎 Total', value: fmt(guildId, total), inline: true },
+                    { name: '📈 Total ganado', value: fmt(guildId, eco.total_earned), inline: true },
+                    { name: '🏆 Posición global', value: `#${rank}`, inline: true },
                 )
                 .setFooter({ text: `Solicitado por ${interaction.user.tag}` })
                 .setTimestamp();
@@ -254,10 +255,10 @@ module.exports = {
         // DAILY
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'daily') {
-            const eco      = getEconomy(guildId, userId);
-            const now      = Date.now();
+            const eco = getEconomy(guildId, userId);
+            const now = Date.now();
             const cooldown = 86400000; // 24h
-            const elapsed  = now - eco.last_daily;
+            const elapsed = now - eco.last_daily;
 
             if (elapsed < cooldown) {
                 const left = msToTime(cooldown - elapsed);
@@ -270,10 +271,10 @@ module.exports = {
 
             // Calcular streak
             const withinStreak = elapsed < cooldown * 2;
-            const streak       = withinStreak ? eco.daily_streak + 1 : 1;
-            const base         = cfg.economy_daily_amount || 200;
-            const bonus        = (cfg.economy_daily_streak_bonus || 50) * (streak - 1);
-            const total        = base + bonus;
+            const streak = withinStreak ? eco.daily_streak + 1 : 1;
+            const base = cfg.economy_daily_amount || 200;
+            const bonus = (cfg.economy_daily_streak_bonus || 50) * (streak - 1);
+            const total = base + bonus;
 
             db.prepare(`
                 UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ?,
@@ -281,6 +282,10 @@ module.exports = {
             `).run(total, total, streak, now, guildId, userId);
 
             logTransaction(guildId, userId, 'daily', total, `Streak x${streak}`);
+
+            const ecoAfterDaily = getEconomy(guildId, userId);
+            checkAndUnlock(guildId, userId, 'daily_streak', streak, interaction.client);
+            checkAndUnlock(guildId, userId, 'total_earned', ecoAfterDaily.total_earned, interaction.client);
 
             const streakBar = '🔥'.repeat(Math.min(streak, 10));
 
@@ -290,8 +295,8 @@ module.exports = {
                     .setTitle('📅 Daily reclamado')
                     .setDescription(`Recibiste ${fmt(guildId, total)}`)
                     .addFields(
-                        { name: '💰 Base',   value: fmt(guildId, base),   inline: true },
-                        { name: '🎁 Bonus',  value: fmt(guildId, bonus),  inline: true },
+                        { name: '💰 Base', value: fmt(guildId, base), inline: true },
+                        { name: '🎁 Bonus', value: fmt(guildId, bonus), inline: true },
                         { name: `🔥 Racha ${streak}`, value: streakBar || '—', inline: false },
                     )
                     .setFooter({ text: 'Vuelve mañana para mantener tu racha.' })
@@ -304,9 +309,9 @@ module.exports = {
         // WORK
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'work') {
-            const eco      = getEconomy(guildId, userId);
+            const eco = getEconomy(guildId, userId);
             const cooldown = cfg.economy_work_cooldown || 3600000;
-            const elapsed  = Date.now() - eco.last_work;
+            const elapsed = Date.now() - eco.last_work;
 
             if (elapsed < cooldown) {
                 return interaction.reply({
@@ -316,8 +321,8 @@ module.exports = {
                 });
             }
 
-            const earned  = random(cfg.economy_work_min || 50, cfg.economy_work_max || 200);
-            const phrase  = WORK_PHRASES[Math.floor(Math.random() * WORK_PHRASES.length)];
+            const earned = random(cfg.economy_work_min || 50, cfg.economy_work_max || 200);
+            const phrase = WORK_PHRASES[Math.floor(Math.random() * WORK_PHRASES.length)];
 
             db.prepare(`
                 UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ?,
@@ -325,6 +330,10 @@ module.exports = {
             `).run(earned, earned, Date.now(), guildId, userId);
 
             logTransaction(guildId, userId, 'work', earned, phrase);
+
+            const workCount = db.prepare(`SELECT COUNT(*) as c FROM transactions WHERE guild_id = ? AND user_id = ? AND type = 'work'`).get(guildId, userId).c;
+            checkAndUnlock(guildId, userId, 'work_count', workCount, interaction.client);
+            checkAndUnlock(guildId, userId, 'total_earned', getEconomy(guildId, userId).total_earned, interaction.client);
 
             return interaction.reply({
                 embeds: [new EmbedBuilder()
@@ -341,9 +350,9 @@ module.exports = {
         // CRIME
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'crime') {
-            const eco      = getEconomy(guildId, userId);
+            const eco = getEconomy(guildId, userId);
             const cooldown = cfg.economy_crime_cooldown || 7200000;
-            const elapsed  = Date.now() - eco.last_crime;
+            const elapsed = Date.now() - eco.last_crime;
 
             if (elapsed < cooldown) {
                 return interaction.reply({
@@ -354,8 +363,8 @@ module.exports = {
             }
 
             const failChance = cfg.economy_crime_fail_pct || 35;
-            const success    = Math.random() * 100 > failChance;
-            const amount     = random(cfg.economy_crime_min || 100, cfg.economy_crime_max || 500);
+            const success = Math.random() * 100 > failChance;
+            const amount = random(cfg.economy_crime_min || 100, cfg.economy_crime_max || 500);
 
             db.prepare('UPDATE economy SET last_crime = ? WHERE guild_id = ? AND user_id = ?')
                 .run(Date.now(), guildId, userId);
@@ -368,6 +377,10 @@ module.exports = {
                 `).run(amount, amount, guildId, userId);
                 logTransaction(guildId, userId, 'crime_win', amount, phrase);
 
+                const crimeCount = db.prepare(`SELECT COUNT(*) as c FROM transactions WHERE guild_id = ? AND user_id = ? AND type = 'crime_win'`).get(guildId, userId).c;
+                checkAndUnlock(guildId, userId, 'crime_count', crimeCount, interaction.client);
+                checkAndUnlock(guildId, userId, 'total_earned', getEconomy(guildId, userId).total_earned, interaction.client);
+
                 return interaction.reply({
                     embeds: [new EmbedBuilder()
                         .setColor('#57F287')
@@ -377,7 +390,7 @@ module.exports = {
                     ]
                 });
             } else {
-                const fine   = Math.floor(amount * 0.5);
+                const fine = Math.floor(amount * 0.5);
                 const phrase = CRIME_FAIL[Math.floor(Math.random() * CRIME_FAIL.length)];
                 const actual = Math.min(eco.wallet, fine);
                 db.prepare(`
@@ -405,9 +418,9 @@ module.exports = {
                 return interaction.reply({ content: '❌ El robo está desactivado en este servidor.', flags: [MessageFlags.Ephemeral] });
             }
 
-            const target    = interaction.options.getUser('usuario');
+            const target = interaction.options.getUser('usuario');
             if (target.id === userId) return interaction.reply({ content: '❌ No puedes robarte a ti mismo.', flags: [MessageFlags.Ephemeral] });
-            if (target.bot)           return interaction.reply({ content: '❌ No puedes robar a un bot.', flags: [MessageFlags.Ephemeral] });
+            if (target.bot) return interaction.reply({ content: '❌ No puedes robar a un bot.', flags: [MessageFlags.Ephemeral] });
 
             const robberEco = getEconomy(guildId, userId);
             const victimEco = getEconomy(guildId, target.id);
@@ -426,7 +439,11 @@ module.exports = {
                 const stolen = Math.floor(victimEco.wallet * random(10, 40) / 100);
                 db.prepare('UPDATE economy SET wallet = wallet - ? WHERE guild_id = ? AND user_id = ?').run(stolen, guildId, target.id);
                 db.prepare('UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?').run(stolen, stolen, guildId, userId);
-                logTransaction(guildId, userId,    'rob_win',  stolen,  `Robó a ${target.username}`);
+                logTransaction(guildId, userId, 'rob_win', stolen, `Robó a ${target.username}`);
+
+                const robCount = db.prepare(`SELECT COUNT(*) as c FROM transactions WHERE guild_id = ? AND user_id = ? AND type = 'rob_win'`).get(guildId, userId).c;
+                checkAndUnlock(guildId, userId, 'rob_win_count', robCount, interaction.client);
+
                 logTransaction(guildId, target.id, 'rob_loss', -stolen, `Robado por ${interaction.user.username}`);
 
                 return interaction.reply({
@@ -437,7 +454,7 @@ module.exports = {
                     ]
                 });
             } else {
-                const fine   = Math.floor(robberEco.wallet * random(5, 20) / 100);
+                const fine = Math.floor(robberEco.wallet * random(5, 20) / 100);
                 const actual = Math.min(robberEco.wallet, fine);
                 db.prepare('UPDATE economy SET wallet = MAX(0, wallet - ?), total_spent = total_spent + ? WHERE guild_id = ? AND user_id = ?').run(actual, actual, guildId, userId);
                 db.prepare('UPDATE economy SET wallet = wallet + ? WHERE guild_id = ? AND user_id = ?').run(actual, guildId, target.id);
@@ -461,7 +478,7 @@ module.exports = {
             const amount = interaction.options.getInteger('cantidad');
 
             if (target.id === userId) return interaction.reply({ content: '❌ No puedes transferirte a ti mismo.', flags: [MessageFlags.Ephemeral] });
-            if (target.bot)           return interaction.reply({ content: '❌ No puedes pagar a un bot.',           flags: [MessageFlags.Ephemeral] });
+            if (target.bot) return interaction.reply({ content: '❌ No puedes pagar a un bot.', flags: [MessageFlags.Ephemeral] });
 
             const senderEco = getEconomy(guildId, userId);
             if (senderEco.wallet < amount) {
@@ -474,8 +491,8 @@ module.exports = {
 
             db.prepare('UPDATE economy SET wallet = wallet - ?, total_spent = total_spent + ? WHERE guild_id = ? AND user_id = ?').run(amount, amount, guildId, userId);
             db.prepare('UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?').run(amount, amount, guildId, target.id);
-            logTransaction(guildId, userId,    'pay_out', -amount, `Pagó a ${target.username}`);
-            logTransaction(guildId, target.id, 'pay_in',   amount, `Recibió de ${interaction.user.username}`);
+            logTransaction(guildId, userId, 'pay_out', -amount, `Pagó a ${target.username}`);
+            logTransaction(guildId, target.id, 'pay_in', amount, `Recibió de ${interaction.user.username}`);
 
             return interaction.reply({
                 embeds: [new EmbedBuilder().setColor('#57F287')
@@ -490,11 +507,11 @@ module.exports = {
         // DEPOSIT / WITHDRAW
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'deposit' || sub === 'withdraw') {
-            const eco    = getEconomy(guildId, userId);
+            const eco = getEconomy(guildId, userId);
             const rawAmt = interaction.options.getString('cantidad');
-            const isAll  = rawAmt.toLowerCase() === 'all';
+            const isAll = rawAmt.toLowerCase() === 'all';
             const source = sub === 'deposit' ? 'wallet' : 'bank';
-            const dest   = sub === 'deposit' ? 'bank'   : 'wallet';
+            const dest = sub === 'deposit' ? 'bank' : 'wallet';
             const amount = isAll ? eco[source] : parseInt(rawAmt);
 
             if (isNaN(amount) || amount <= 0) {
@@ -514,7 +531,7 @@ module.exports = {
             `).run(amount, amount, guildId, userId);
             logTransaction(guildId, userId, sub, amount, null);
 
-            const icon   = sub === 'deposit' ? '🏦' : '👜';
+            const icon = sub === 'deposit' ? '🏦' : '👜';
             const action = sub === 'deposit' ? 'depositados en el banco' : 'retirados a cartera';
 
             return interaction.reply({
@@ -541,10 +558,10 @@ module.exports = {
                 return interaction.editReply({ content: '❌ No hay datos de economía aún.' });
             }
 
-            const medals = ['🥇','🥈','🥉'];
-            const lines  = await Promise.all(top.map(async (row, i) => {
+            const medals = ['🥇', '🥈', '🥉'];
+            const lines = await Promise.all(top.map(async (row, i) => {
                 const user = await interaction.client.users.fetch(row.user_id).catch(() => null);
-                const name = user?.username || `Usuario (${row.user_id.slice(0,6)})`;
+                const name = user?.username || `Usuario (${row.user_id.slice(0, 6)})`;
                 const icon = medals[i] || `**${i + 1}.**`;
                 return `${icon} **${name}** — ${fmt(guildId, row.total)}`;
             }));
@@ -563,9 +580,9 @@ module.exports = {
         // SHOP
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'shop') {
-            const page     = (interaction.options.getInteger('pagina') || 1) - 1;
+            const page = (interaction.options.getInteger('pagina') || 1) - 1;
             const pageSize = 6;
-            const items    = db.prepare(`
+            const items = db.prepare(`
                 SELECT * FROM shop_items WHERE guild_id = ? AND available = 1
                 LIMIT ? OFFSET ?
             `).all(guildId, pageSize, page * pageSize);
@@ -600,9 +617,9 @@ module.exports = {
         // BUY
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'buy') {
-            const itemId   = interaction.options.getInteger('id');
-            const qty      = interaction.options.getInteger('cantidad') || 1;
-            const item     = db.prepare('SELECT * FROM shop_items WHERE id = ? AND guild_id = ? AND available = 1').get(itemId, guildId);
+            const itemId = interaction.options.getInteger('id');
+            const qty = interaction.options.getInteger('cantidad') || 1;
+            const item = db.prepare('SELECT * FROM shop_items WHERE id = ? AND guild_id = ? AND available = 1').get(itemId, guildId);
 
             if (!item) return interaction.reply({ content: `❌ Ítem **#${itemId}** no encontrado.`, flags: [MessageFlags.Ephemeral] });
             if (item.stock !== -1 && item.stock < qty) {
@@ -610,7 +627,7 @@ module.exports = {
             }
 
             const total = item.price * qty;
-            const eco   = getEconomy(guildId, userId);
+            const eco = getEconomy(guildId, userId);
 
             if (eco.wallet < total) {
                 return interaction.reply({
@@ -643,6 +660,10 @@ module.exports = {
 
             logTransaction(guildId, userId, 'buy', -total, `Compró x${qty} ${item.name}`);
 
+            const buyCount = db.prepare(`SELECT COUNT(*) as c FROM transactions WHERE guild_id = ? AND user_id = ? AND type = 'buy'`).get(guildId, userId).c;
+            checkAndUnlock(guildId, userId, 'buy_count', buyCount, interaction.client);
+            checkAndUnlock(guildId, userId, 'total_spent', getEconomy(guildId, userId).total_spent, interaction.client);
+
             return interaction.reply({
                 embeds: [new EmbedBuilder()
                     .setColor('#57F287')
@@ -658,7 +679,7 @@ module.exports = {
         // ══════════════════════════════════════════════════════════════════
         if (sub === 'inventory') {
             const target = interaction.options.getUser('usuario') || interaction.user;
-            const items  = db.prepare(`
+            const items = db.prepare(`
                 SELECT i.quantity, s.name, s.emoji, s.description, s.id
                 FROM inventory i JOIN shop_items s ON i.item_id = s.id
                 WHERE i.guild_id = ? AND i.user_id = ?
@@ -705,9 +726,9 @@ module.exports = {
             };
 
             const lines = txs.map(tx => {
-                const sign  = tx.amount >= 0 ? '+' : '';
+                const sign = tx.amount >= 0 ? '+' : '';
                 const label = typeLabel[tx.type] || tx.type;
-                const time  = `<t:${Math.floor(tx.timestamp / 1000)}:R>`;
+                const time = `<t:${Math.floor(tx.timestamp / 1000)}:R>`;
                 return `${label} · **${sign}${tx.amount.toLocaleString('es-CL')}** · ${time}${tx.detail ? `\n> ${tx.detail}` : ''}`;
             });
 
@@ -730,13 +751,13 @@ module.exports = {
                 return interaction.reply({ content: '❌ Necesitas **Gestionar Servidor**.', flags: [MessageFlags.Ephemeral] });
             }
 
-            const name  = interaction.options.getString('nombre');
+            const name = interaction.options.getString('nombre');
             const price = interaction.options.getInteger('precio');
-            const desc  = interaction.options.getString('descripcion') || null;
+            const desc = interaction.options.getString('descripcion') || null;
             const emoji = interaction.options.getString('emoji') || '🛍️';
-            const role  = interaction.options.getRole('rol');
+            const role = interaction.options.getRole('rol');
             const stock = interaction.options.getInteger('stock') ?? -1;
-            const type  = role ? 'role' : 'item';
+            const type = role ? 'role' : 'item';
 
             const info = db.prepare(`
                 INSERT INTO shop_items (guild_id, name, description, price, emoji, role_id, type, stock, available, timestamp)
@@ -748,11 +769,11 @@ module.exports = {
                     .setColor('#57F287')
                     .setTitle('✅ Ítem agregado a la tienda')
                     .addFields(
-                        { name: '🆔 ID',        value: `\`${info.lastInsertRowid}\``, inline: true },
-                        { name: '📦 Nombre',    value: name,                          inline: true },
-                        { name: '💰 Precio',    value: price.toLocaleString('es-CL'), inline: true },
-                        { name: '📦 Stock',     value: stock === -1 ? '∞' : `${stock}`, inline: true },
-                        { name: '🎭 Tipo',      value: type,                          inline: true },
+                        { name: '🆔 ID', value: `\`${info.lastInsertRowid}\``, inline: true },
+                        { name: '📦 Nombre', value: name, inline: true },
+                        { name: '💰 Precio', value: price.toLocaleString('es-CL'), inline: true },
+                        { name: '📦 Stock', value: stock === -1 ? '∞' : `${stock}`, inline: true },
+                        { name: '🎭 Tipo', value: type, inline: true },
                         ...(role ? [{ name: '🎭 Rol', value: `<@&${role.id}>`, inline: true }] : [])
                     )
                 ],
@@ -768,7 +789,7 @@ module.exports = {
                 return interaction.reply({ content: '❌ Necesitas **Gestionar Servidor**.', flags: [MessageFlags.Ephemeral] });
             }
 
-            const id   = interaction.options.getInteger('id');
+            const id = interaction.options.getInteger('id');
             const item = db.prepare('SELECT * FROM shop_items WHERE id = ? AND guild_id = ?').get(id, guildId);
             if (!item) return interaction.reply({ content: `❌ Ítem #${id} no encontrado.`, flags: [MessageFlags.Ephemeral] });
 
@@ -804,7 +825,7 @@ module.exports = {
 
             if (sub === 'take') {
                 const amount = interaction.options.getInteger('cantidad');
-                const eco    = getEconomy(guildId, target.id);
+                const eco = getEconomy(guildId, target.id);
                 const actual = Math.min(eco.wallet, amount);
                 db.prepare('UPDATE economy SET wallet = MAX(0, wallet - ?) WHERE guild_id = ? AND user_id = ?')
                     .run(actual, guildId, target.id);
@@ -840,16 +861,16 @@ module.exports = {
             }
 
             const ajuste = interaction.options.getString('ajuste');
-            const valor  = interaction.options.getString('valor');
+            const valor = interaction.options.getString('valor');
 
             const map = {
-                currency:       { col: 'economy_currency',        parse: v => v.slice(0, 20) },
-                emoji:          { col: 'economy_currency_emoji',   parse: v => v.slice(0, 10) },
-                daily_amount:   { col: 'economy_daily_amount',     parse: v => parseInt(v) || 200 },
-                work_cooldown:  { col: 'economy_work_cooldown',    parse: v => (parseInt(v) || 60) * 60000 },
-                crime_cooldown: { col: 'economy_crime_cooldown',   parse: v => (parseInt(v) || 120) * 60000 },
-                toggle:         { col: 'economy_enabled',          parse: v => ['on','1','true','activar'].includes(v.toLowerCase()) ? 1 : 0 },
-                log_channel:    { col: 'economy_log_channel',      parse: v => v.replace(/[<#>]/g, '') },
+                currency: { col: 'economy_currency', parse: v => v.slice(0, 20) },
+                emoji: { col: 'economy_currency_emoji', parse: v => v.slice(0, 10) },
+                daily_amount: { col: 'economy_daily_amount', parse: v => parseInt(v) || 200 },
+                work_cooldown: { col: 'economy_work_cooldown', parse: v => (parseInt(v) || 60) * 60000 },
+                crime_cooldown: { col: 'economy_crime_cooldown', parse: v => (parseInt(v) || 120) * 60000 },
+                toggle: { col: 'economy_enabled', parse: v => ['on', '1', 'true', 'activar'].includes(v.toLowerCase()) ? 1 : 0 },
+                log_channel: { col: 'economy_log_channel', parse: v => v.replace(/[<#>]/g, '') },
             };
 
             const target = map[ajuste];
