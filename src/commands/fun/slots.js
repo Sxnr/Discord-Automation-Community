@@ -1,4 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const db = require('../../database/db');
+const { use } = require('react');
 
 const SYMBOLS = [
     { emoji: '🍒', name: 'Cereza',    weight: 30, mult: 2   },
@@ -12,6 +14,27 @@ const SYMBOLS = [
 
 const COOLDOWNS = new Map();
 const COOLDOWN_MS = 15000;
+
+function getEconomy(guildId, userId) {
+    db.prepare('INSERT OR IGNORE INTO economy (guild_id, user_id,) VALUES (?, ?)').run(guildId, userId);
+    return db.prepare('SELECT * FROM economy WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
+}
+
+function logTransaction(guildId, userId, type, amount, detail = null) {
+    db.prepare('INSERT INTO transactions (guild_id, user_id, type, amount, detail, timestamp) VALUES (?, ?, ?, ?, ?, ?)').run(guildId, userId, type, amount, detail, Date.now());
+}
+
+function getSettings(guildId) {
+    db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)').run(guildId);
+    return db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);
+}
+
+function fmt(guildId, amount) {
+    const s = getSettings(guildId);
+    const emoji = s?.economy_currency_emoji || '💰';
+    const name = s?.economy_currency || 'coins';
+    return `${emoji} ${amount.toLocaleString('es-CL')} ${name}`;
+}
 
 function weightedRandom() {
     const total = SYMBOLS.reduce((a, s) => a + s.weight, 0);
@@ -75,6 +98,21 @@ module.exports = {
         const userId = interaction.user.id;
         const bet    = interaction.options.getInteger('apuesta');
 
+        const eco = getEconomy(guildId, userId);
+        if (eco.wallet < bet) {
+            return interaction.reply({
+                embeds: [new EmbedBuilder()
+                    .setColor('#ED4245')
+                    .setTitle('💸 Sin fondos suficientes')
+                    .setDescription(
+                        `**Tu saldo:** ${fmt(guildId, eco.wallet)}\n` +
+                        `**Apuesta:** ${fmt(guildId, bet)}\n\n` +
+                        `¡No tienes suficientes coins en cartera!`
+                    )
+                ],
+                flags: [MessageFlags.Ephemeral]
+            });
+        }
         // Cooldown
         const lastUsed = COOLDOWNS.get(userId);
         if (lastUsed && Date.now() - lastUsed < COOLDOWN_MS) {
@@ -109,6 +147,14 @@ module.exports = {
         const result = evaluate(reels, bet);
         const won    = Math.floor(bet * result.mult);
         const profit = won - bet;
+
+        if (result.mult > 0) {
+            db.prepare(`UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?`).run(won, won, guildId, userId);
+            logTransaction(guildId, userId, 'slots_win', won, '🎰 Slots');
+        } else {
+            db.prepare(`UPDATE economy SET wallet = wallet - ?, total_spent = + total_spent + ? WHERE guild_id = ? AND user_id = ?`).run(bet, bet, guildId, userId);
+            logTransaction(guildId, userId, 'slots_loss', -bet, '🎰 Slots');
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('🎰 Tragamonedas')
