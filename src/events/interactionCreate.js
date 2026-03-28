@@ -8,7 +8,7 @@ const { buildWarnPanel } = require('../commands/admin/warn');
 const { buildHistoryPanel } = require('../commands/admin/mod');
 const { buildLeaderboard } = require('../commands/utility/leaderboard');
 const { buildEmbed, buildVoteRow } = require('../utils/suggestHelpers');
-const { checkAndUnlock } = require('../utils/achievements');
+const { checkAndUnlock } = require('../economy/achievements');
 
 
 // ══════════════════════════════════════════════════════════
