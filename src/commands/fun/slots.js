@@ -16,7 +16,7 @@ const COOLDOWNS = new Map();
 const COOLDOWN_MS = 15000;
 
 function getEconomy(guildId, userId) {
-    db.prepare('INSERT OR IGNORE INTO economy (guild_id, user_id,) VALUES (?, ?)').run(guildId, userId);
+    db.prepare('INSERT OR IGNORE INTO economy (guild_id, user_id) VALUES (?, ?)').run(guildId, userId);
     return db.prepare('SELECT * FROM economy WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
 }
 
