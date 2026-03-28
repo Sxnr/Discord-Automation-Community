@@ -149,12 +149,17 @@ module.exports = {
         const won    = Math.floor(bet * result.mult);
         const profit = won - bet;
 
+        db.prepare(`UPDATE economy SET wallet = wallet - ?, total_spent = total_spent + ? WHERE guild_id = ? AND user_id = ?`)
+          .run(bet, bet, guildId, userId);
+
         if (result.mult > 0) {
-            db.prepare(`UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?`).run(won, won, guildId, userId);
-            logTransaction(guildId, userId, 'slots_win', won, '🎰 Slots');
+            db.prepare(`UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?`)
+              .run(won, won, guildId, userId);
+            
+            logTransaction(guildId, userId, 'slots_win', won, '🎰 Slots Win');
         } else {
-            db.prepare(`UPDATE economy SET wallet = wallet - ?, total_spent = + total_spent + ? WHERE guild_id = ? AND user_id = ?`).run(bet, bet, guildId, userId);
-            logTransaction(guildId, userId, 'slots_loss', -bet, '🎰 Slots');
+            // Log de pérdida
+            logTransaction(guildId, userId, 'slots_loss', -bet, '🎰 Slots Loss');
         }
 
         const embed = new EmbedBuilder()
