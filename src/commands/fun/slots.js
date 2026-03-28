@@ -153,13 +153,14 @@ module.exports = {
           .run(bet, bet, guildId, userId);
 
         if (result.mult > 0) {
+            const recordToStats = profit > 0 ? profit : 0;
+
             db.prepare(`UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?`)
-              .run(won, won, guildId, userId);
+              .run(won, recordToStats, guildId, userId);
             
-            logTransaction(guildId, userId, 'slots_win', won, '🎰 Slots Win');
+            logTransaction(guildId, userId, 'slots_win', won, `🎰 Slots: ${result.label}`);
         } else {
-            // Log de pérdida
-            logTransaction(guildId, userId, 'slots_loss', -bet, '🎰 Slots Loss');
+            logTransaction(guildId, userId, 'slots_loss', -bet, '🎰 Slots: Pérdida');
         }
 
         const embed = new EmbedBuilder()
