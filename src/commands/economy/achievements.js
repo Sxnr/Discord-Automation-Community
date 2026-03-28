@@ -52,18 +52,26 @@ const GLOBAL_ACHIEVEMENTS = [
 
 // ── Seed logros globales ───────────────────────────────────────────────────
 function seedGlobalAchievements() {
+    // 1. Limpiamos los globales existentes para evitar que se acumulen duplicados de sesiones anteriores
+    db.prepare('DELETE FROM achievements WHERE global = 1').run();
+
+    // 2. Preparamos la inserción limpia
     const insert = db.prepare(`
         INSERT OR IGNORE INTO achievements
         (guild_id, key, name, description, emoji, condition, threshold, secret, global)
         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 1)
     `);
+
     const insertMany = db.transaction(() => {
         for (const a of GLOBAL_ACHIEVEMENTS) {
             insert.run(a.key, a.name, a.description, a.emoji, a.condition, a.threshold, a.secret || 0);
         }
     });
+
     insertMany();
+    console.log(`✅ Se han sincronizado ${GLOBAL_ACHIEVEMENTS.length} logros globales.`);
 }
+
 seedGlobalAchievements();
 
 // ── Unlock helper (llamado desde otros módulos) ────────────────────────────

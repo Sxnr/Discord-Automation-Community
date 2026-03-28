@@ -69,4 +69,14 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
+const db = require('./database/db'); 
+try {
+    db.prepare("DELETE FROM achievements").run();
+    db.prepare("DELETE FROM user_achievements").run();
+    db.prepare("VACUUM").run(); // Limpia la base de datos físicamente
+    console.log("✅ Limpieza profunda completada.");
+} catch (e) {
+    console.error(e);
+}
+
 client.login(config.token);
