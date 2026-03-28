@@ -69,10 +69,13 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// Script de limpieza rápida (puedes ponerlo temporalmente en tu index.js)
-const db = require('./src/database/db'); // Ajusta la ruta a tu archivo db
-db.prepare("DELETE FROM achievements").run();
-db.prepare("DELETE FROM user_achievements").run();
-console.log("Base de datos de logros limpiada. Ahora se rellenará sin duplicados.");
+try {
+    const db = require('./database/db'); // Ruta corregida
+    db.prepare("DELETE FROM achievements").run();
+    db.prepare("DELETE FROM user_achievements").run();
+    console.log("✅ Base de datos de logros limpiada satisfactoriamente.");
+} catch (error) {
+    console.error("❌ Error al limpiar la base de datos:", error.message);
+}
 
 client.login(config.token);
