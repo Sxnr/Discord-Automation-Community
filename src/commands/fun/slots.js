@@ -95,6 +95,7 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        const guildId = interaction.guild.id;
         const userId = interaction.user.id;
         const bet    = interaction.options.getInteger('apuesta');
 
