@@ -1113,6 +1113,14 @@ module.exports = {
                     });
                 }
 
+                if (interaction.isButton()) {
+                // --- Botón "Otro meme" ---
+                    if (interaction.customId.startsWith('meme_otro_')) {
+                    const memeCmd = client.commands.get('meme');
+                    if (memeCmd?.handleButton) return memeCmd.handleButton(interaction);
+                    }
+                }
+
             } catch (error) {
                 console.error('❌ Error en interacción:', error);
                 const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
