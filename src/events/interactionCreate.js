@@ -1116,7 +1116,7 @@ module.exports = {
                 if (interaction.isButton()) {
                 // --- Botón "Otro meme" ---
                     if (interaction.customId.startsWith('meme_otro_')) {
-                    const memeCmd = client.commands.get('meme');
+                    const memeCmd = interaction.client.commands.get('meme');
                     if (memeCmd?.handleButton) return memeCmd.handleButton(interaction);
                     }
                 }
