@@ -2,13 +2,13 @@ const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const db = require('../database/db');
 
-// IMPORTANTE: Aquí NO debe haber ninguna línea que mencione 'ffmpeg-static'
-
+// HE ELIMINADO LA LÍNEA 4 QUE CAUSABA EL ERROR (ffmpeg-static)
 let _player = null;
 
 async function initPlayer(client) {
     if (_player) return _player;
 
+    // El player usará automáticamente el FFmpeg instalado en tu servidor Linux
     _player = new Player(client, { 
         skipFFmpeg: false,
         ytdlOptions: {
@@ -19,7 +19,7 @@ async function initPlayer(client) {
 
     await _player.extractors.loadMulti(DefaultExtractors);
     
-    // ── Evento de Debug (Vital para ver por qué se corta el audio) ──
+    // Evento de Debug para monitorear la conexión de voz
     _player.events.on('debug', (queue, message) => {
         console.log(`[Player Debug]: ${message}`);
     });
@@ -94,7 +94,7 @@ async function initPlayer(client) {
         console.error('[Music:error]', error);
     });
 
-    console.log('[Music] ✅ Player inicializado y configurado para DAVE/FFmpeg');
+    console.log('[Music] ✅ Player inicializado con FFmpeg del sistema');
     return _player;
 }
 
