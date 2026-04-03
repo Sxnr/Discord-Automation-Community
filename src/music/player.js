@@ -1,19 +1,27 @@
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const db = require('../database/db');
-process.env.FFMPEG_PATH = require('ffmpeg-static');
 
+// Eliminamos ffmpeg-static para usar el del sistema, que es más estable
 let _player = null;
 
 async function initPlayer(client) {
     if (_player) return _player;
 
-    _player = new Player(client, { skipFFmpeg: false });
-
-    // DefaultExtractors incluye YouTube, SoundCloud, Spotify, Vimeo, etc.
+    _player = new Player(client, { 
+        skipFFmpeg: false,
+        ytdlOptions: {
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25 // Buffer de 32MB para evitar cortes
+        }
+    });
 
     await _player.extractors.loadMulti(DefaultExtractors);
     
+    // ── Evento de Debug (Vital para ver por qué se corta el audio) ──
+    _player.events.on('debug', (queue, message) => {
+        console.log(`[Player Debug]: ${message}`);
+    });
 
     // ── Evento: canción comienza ───────────────────────────────
     _player.events.on('playerStart', (queue, track) => {
@@ -34,7 +42,6 @@ async function initPlayer(client) {
             footer: { text: `${queue.tracks.size} canciones restantes en cola` },
         };
 
-        // Guardar historial
         try {
             db.prepare(`
                 INSERT INTO music_history
@@ -49,7 +56,7 @@ async function initPlayer(client) {
                 detectSource(track.url),
                 Date.now()
             );
-        } catch { /* historial no es crítico */ }
+        } catch { /* historial no crítico */ }
 
         const target = cfg.music_text_channel
             ? queue.guild.channels.cache.get(cfg.music_text_channel)
@@ -76,17 +83,17 @@ async function initPlayer(client) {
 
     // ── Errores ────────────────────────────────────────────────
     _player.events.on('playerError', (queue, error) => {
-        console.error('[Music:playerError]', error.message);
+        console.error('[Music:playerError]', error);
         queue.metadata?.channel?.send({
             embeds: [{ color: 0xED4245, description: `❌ Error de reproducción: \`${error.message}\`` }]
         }).catch(() => {});
     });
 
     _player.events.on('error', (queue, error) => {
-        console.error('[Music:error]', error?.message ?? error);
+        console.error('[Music:error]', error);
     });
 
-    console.log('[Music] ✅ Player inicializado — YouTube (built-in) + SoundCloud');
+    console.log('[Music] ✅ Player inicializado y configurado para DAVE/FFmpeg');
     return _player;
 }
 
@@ -104,10 +111,6 @@ function detectSourceLabel(url = '') {
     return '🔍 Búsqueda';
 }
 
-/**
- * Verifica si el usuario tiene rol DJ (si hay uno configurado).
- * Sin rol configurado → todos pueden usar los comandos.
- */
 function checkDJ(interaction) {
     const cfg = db.prepare('SELECT music_dj_role FROM guild_settings WHERE guild_id = ?').get(interaction.guild.id);
     if (!cfg?.music_dj_role) return true;
@@ -115,9 +118,6 @@ function checkDJ(interaction) {
         || interaction.member.permissions.has('ManageGuild');
 }
 
-/**
- * Verifica si el usuario está en el mismo canal de voz que el bot.
- */
 function sameChannel(interaction) {
     const botVC  = interaction.guild.members.me?.voice?.channelId;
     const userVC = interaction.member.voice?.channelId;
