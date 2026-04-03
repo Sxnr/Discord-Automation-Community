@@ -1,5 +1,5 @@
 const { Player } = require('discord-player');
-const { SoundCloudExtractor } = require('@discord-player/extractor');
+const { DefaultExtractors } = require('@discord-player/extractor');
 const db = require('../database/db');
 
 let _player = null;
@@ -9,10 +9,10 @@ async function initPlayer(client) {
 
     _player = new Player(client, { skipFFmpeg: false });
 
-    // YouTube está integrado en discord-player — loadDefault() lo activa
-    // SoundCloudExtractor viene de @discord-player/extractor
-    await _player.extractors.loadDefault();
-    await _player.extractors.register(SoundCloudExtractor, {});
+    // DefaultExtractors incluye YouTube, SoundCloud, Spotify, Vimeo, etc.
+
+    await _player.extractors.loadMulti(DefaultExtractors);
+    
 
     // ── Evento: canción comienza ───────────────────────────────
     _player.events.on('playerStart', (queue, track) => {
@@ -26,8 +26,8 @@ async function initPlayer(client) {
             url: track.url,
             thumbnail: { url: track.thumbnail },
             fields: [
-                { name: '⏱ Duración', value: track.duration, inline: true },
-                { name: '🎵 Fuente', value: detectSourceLabel(track.url), inline: true },
+                { name: '⏱ Duración',   value: track.duration,                        inline: true },
+                { name: '🎵 Fuente',     value: detectSourceLabel(track.url),          inline: true },
                 { name: '👤 Pedido por', value: `<@${track.requestedBy?.id ?? '0'}>`, inline: true },
             ],
             footer: { text: `${queue.tracks.size} canciones restantes en cola` },
@@ -53,7 +53,7 @@ async function initPlayer(client) {
         const target = cfg.music_text_channel
             ? queue.guild.channels.cache.get(cfg.music_text_channel)
             : queue.metadata?.channel;
-        target?.send({ embeds: [embed] }).catch(() => { });
+        target?.send({ embeds: [embed] }).catch(() => {});
     });
 
     // ── Cola vacía ─────────────────────────────────────────────
@@ -63,14 +63,14 @@ async function initPlayer(client) {
         const ch = cfg?.music_text_channel
             ? queue.guild.channels.cache.get(cfg.music_text_channel)
             : queue.metadata?.channel;
-        ch?.send({ embeds: [embed] }).catch(() => { });
+        ch?.send({ embeds: [embed] }).catch(() => {});
     });
 
     // ── Canal vacío ────────────────────────────────────────────
     _player.events.on('emptyChannel', (queue) => {
         queue.metadata?.channel?.send({
             embeds: [{ color: 0xFEE75C, description: '👋 Canal de voz vacío. Desconectando...' }]
-        }).catch(() => { });
+        }).catch(() => {});
     });
 
     // ── Errores ────────────────────────────────────────────────
@@ -78,7 +78,7 @@ async function initPlayer(client) {
         console.error('[Music:playerError]', error.message);
         queue.metadata?.channel?.send({
             embeds: [{ color: 0xED4245, description: `❌ Error de reproducción: \`${error.message}\`` }]
-        }).catch(() => { });
+        }).catch(() => {});
     });
 
     _player.events.on('error', (queue, error) => {
@@ -118,7 +118,7 @@ function checkDJ(interaction) {
  * Verifica si el usuario está en el mismo canal de voz que el bot.
  */
 function sameChannel(interaction) {
-    const botVC = interaction.guild.members.me?.voice?.channelId;
+    const botVC  = interaction.guild.members.me?.voice?.channelId;
     const userVC = interaction.member.voice?.channelId;
     if (!botVC) return true;
     return botVC === userVC;
