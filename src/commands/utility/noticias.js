@@ -1,13 +1,18 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+// GNews API — gratis, sin restricción de host, 100 req/día
+// Registro gratuito en: https://gnews.io (no requiere tarjeta)
+const GNEWS = 'https://gnews.io/api/v4';
 
 const CATS = {
-    general:       { name: 'Generales',       emoji: '📰', color: '#5865F2' },
-    technology:    { name: 'Tecnología',      emoji: '💻', color: '#00B0F4' },
-    science:       { name: 'Ciencia',         emoji: '🔬', color: '#57F287' },
-    sports:        { name: 'Deportes',        emoji: '⚽', color: '#FEE75C' },
-    entertainment: { name: 'Entretenimiento', emoji: '🎬', color: '#EB459E' },
-    health:        { name: 'Salud',           emoji: '🏥', color: '#3BA55C' },
-    business:      { name: 'Negocios',        emoji: '💼', color: '#ED4245' },
+    general:        { name: 'Generales',        emoji: '📰', color: '#5865F2', gnews: 'general'       },
+    technology:     { name: 'Tecnología',       emoji: '💻', color: '#00B0F4', gnews: 'technology'    },
+    science:        { name: 'Ciencia',          emoji: '🔬', color: '#57F287', gnews: 'science'       },
+    sports:         { name: 'Deportes',         emoji: '⚽', color: '#FEE75C', gnews: 'sports'        },
+    entertainment:  { name: 'Entretenimiento',  emoji: '🎬', color: '#EB459E', gnews: 'entertainment' },
+    health:         { name: 'Salud',            emoji: '🏥', color: '#3BA55C', gnews: 'health'        },
+    business:       { name: 'Negocios',         emoji: '💼', color: '#ED4245', gnews: 'business'      },
+    world:          { name: 'Mundo',            emoji: '🌍', color: '#6C5CE7', gnews: 'world'         },
 };
 
 module.exports = {
@@ -26,6 +31,7 @@ module.exports = {
                 { name: '🎬 Entretenimiento',   value: 'entertainment' },
                 { name: '🏥 Salud',             value: 'health'        },
                 { name: '💼 Negocios',          value: 'business'      },
+                { name: '🌍 Mundo',             value: 'world'         },
             )
         )
         .addStringOption(o => o
@@ -45,21 +51,30 @@ module.exports = {
 
         await interaction.deferReply();
 
-        const key = process.env.NEWS_API_KEY;
-        let articles;
+        const key = process.env.GNEWS_KEY;
 
+        if (!key) {
+            return interaction.editReply({
+                embeds: [new EmbedBuilder().setColor('#ED4245')
+                    .setTitle('⚙️ API no configurada')
+                    .setDescription('Falta la variable `GNEWS_KEY` en el `.env`.\n\n**Registro gratuito en:** https://gnews.io\n(No requiere tarjeta de crédito)')
+                ],
+            });
+        }
+
+        let articles;
         try {
-            const res  = await fetch(`https://newsapi.org/v2/top-headlines?category=${cat}&language=${lang}&pageSize=6&apiKey=${key}`);
+            const url = `${GNEWS}/top-headlines?category=${info.gnews}&lang=${lang}&max=6&apikey=${key}`;
+            const res  = await fetch(url);
             const data = await res.json();
 
-            if (data.status !== 'ok') throw new Error(data.message || 'Error de API');
-            articles = (data.articles || []).filter(a => a.title && a.title !== '[Removed]' && a.url);
+            if (data.errors) throw new Error(Array.isArray(data.errors) ? data.errors.join(', ') : JSON.stringify(data.errors));
+            articles = data.articles || [];
         } catch (e) {
-            // Fallback: intentar con inglés si el idioma pedido no tiene resultados
             return interaction.editReply({
                 embeds: [new EmbedBuilder().setColor('#ED4245')
                     .setTitle('❌ Error al obtener noticias')
-                    .setDescription(`${e.message}\n\n💡 Si el error persiste desde el VPS, NewsAPI puede requerir plan pago para producción. Avísame para usar una alternativa gratuita.`)
+                    .setDescription(`${e.message}\n\n💡 Verifica que \`GNEWS_KEY\` en tu \`.env\` sea correcta.`)
                 ],
             });
         }
@@ -85,24 +100,20 @@ module.exports = {
             .setTitle(`${info.emoji} Noticias — ${info.name}`)
             .setDescription(lines)
             .setColor(info.color)
-            .setFooter({ text: `Solicitado por ${interaction.user.username} · NewsAPI` })
+            .setFooter({ text: `Solicitado por ${interaction.user.username} · GNews` })
             .setTimestamp();
 
-        if (articles[0]?.urlToImage) {
-            embed.setThumbnail(articles[0].urlToImage);
-        }
+        const firstImg = articles.find(a => a.image)?.image;
+        if (firstImg) embed.setThumbnail(firstImg);
 
-        const rows = [];
-        if (articles[0]?.url) {
-            rows.push(new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setLabel('Ver más noticias')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(`https://news.google.com/search?q=${encodeURIComponent(info.name)}&hl=${lang}`)
-                    .setEmoji('🌐'),
-            ));
-        }
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setLabel('Ver más noticias')
+                .setStyle(ButtonStyle.Link)
+                .setURL(`https://news.google.com/search?q=${encodeURIComponent(info.name)}&hl=${lang}`)
+                .setEmoji('🌐'),
+        );
 
-        return interaction.editReply({ embeds: [embed], ...(rows.length ? { components: rows } : {}) });
+        return interaction.editReply({ embeds: [embed], components: [row] });
     },
 };
