@@ -303,6 +303,156 @@ db.prepare(`
     )
 `).run();
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 8. RECORDATORIOS
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reminders (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id    TEXT    NOT NULL,
+        guild_id   TEXT,
+        channel_id TEXT    NOT NULL,
+        message    TEXT    NOT NULL,
+        remind_at  INTEGER NOT NULL,
+        created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 9. ENCUESTAS (POLLS)
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS polls (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id  TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message_id TEXT,
+        author_id TEXT NOT NULL,
+        question  TEXT NOT NULL,
+        options   TEXT NOT NULL DEFAULT '[]',
+        votes     TEXT NOT NULL DEFAULT '{}',
+        voters    TEXT NOT NULL DEFAULT '[]',
+        ended     INTEGER DEFAULT 0,
+        ends_at   INTEGER,
+        created_at INTEGER NOT NULL
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 10. REPORTES
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reports (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        channel_id  TEXT,
+        message_id  TEXT,
+        author_id   TEXT NOT NULL,
+        reported_id TEXT NOT NULL,
+        reason      TEXT NOT NULL,
+        status      TEXT DEFAULT 'pending',
+        handled_by  TEXT,
+        created_at  INTEGER NOT NULL
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 11. EVENTOS DEL SERVIDOR
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS server_events (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id      TEXT NOT NULL,
+        channel_id    TEXT,
+        message_id    TEXT,
+        author_id     TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        description   TEXT,
+        location      TEXT,
+        starts_at     INTEGER NOT NULL,
+        ends_at       INTEGER,
+        max_attendees INTEGER DEFAULT 0,
+        attendees     TEXT DEFAULT '[]',
+        status        TEXT DEFAULT 'upcoming',
+        created_at    INTEGER NOT NULL
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 12. STARBOARD
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS starboard (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id       TEXT NOT NULL,
+        original_msg_id TEXT NOT NULL,
+        starboard_msg_id TEXT,
+        channel_id     TEXT NOT NULL,
+        author_id      TEXT NOT NULL,
+        star_count     INTEGER DEFAULT 0,
+        UNIQUE(guild_id, original_msg_id)
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 13. CUMPLEAÑOS
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS birthdays (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id  TEXT NOT NULL,
+        month    INTEGER NOT NULL,
+        day      INTEGER NOT NULL,
+        year     INTEGER,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 14. ROLES POR REACCIÓN (REACTION ROLES)
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reaction_roles (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id   TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        emoji      TEXT NOT NULL,
+        role_id    TEXT NOT NULL,
+        UNIQUE(guild_id, message_id, emoji)
+    )
+`).run();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 15. ECONOMÍA — TIENDA E INVENTARIO
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS shop (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        description TEXT,
+        price       INTEGER NOT NULL,
+        emoji       TEXT DEFAULT '🛍️',
+        role_id     TEXT,
+        stock       INTEGER DEFAULT -1,
+        created_at  INTEGER NOT NULL,
+        UNIQUE(guild_id, name)
+    )
+`).run();
+
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS inventory (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id  TEXT NOT NULL,
+        item     TEXT NOT NULL,
+        quantity INTEGER DEFAULT 1,
+        UNIQUE(guild_id, user_id, item)
+    )
+`).run();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MIGRACIONES DINÁMICAS (Para actualizaciones futuras sin borrar la DB)
@@ -320,6 +470,16 @@ function migrateTable(tableName, columns) {
         }
     }
 }
+
+migrateTable('reports', {
+    channel_id: 'TEXT',
+    message_id: 'TEXT',
+});
+
+migrateTable('server_events', {
+    location: 'TEXT',
+    ends_at:  'INTEGER',
+});
 
 
 // Ejecutar migraciones por seguridad
