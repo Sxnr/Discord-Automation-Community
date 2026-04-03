@@ -1,6 +1,7 @@
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const db = require('../database/db');
+process.env.FFMPEG_PATH = require('ffmpeg-static');
 
 let _player = null;
 
