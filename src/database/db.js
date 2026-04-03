@@ -1,10 +1,13 @@
 const Database = require('better-sqlite3');
 const path = require('node:path');
 
+
 const db = new Database(path.join(__dirname, 'database.sqlite'));
+
 
 // Habilitar el modo WAL para mejor rendimiento en escrituras simultáneas
 db.pragma('journal_mode = WAL');
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 1. CONFIGURACIÓN DEL SERVIDOR (GUILD SETTINGS)
@@ -15,7 +18,7 @@ db.prepare(`
         welcome_channel TEXT,
         staff_role TEXT,
         prefix TEXT DEFAULT '/',
-        
+
         -- Tickets
         ticket_log_channel TEXT,
         ticket_embed_msg TEXT,
@@ -98,7 +101,7 @@ db.prepare(`
         events_log_channel TEXT,
         reminder_max INTEGER DEFAULT 10,
         rr_max_panels INTEGER DEFAULT 10,
-        
+
         -- Verificación
         verify_enabled INTEGER DEFAULT 0,
         verify_role TEXT,
@@ -115,9 +118,22 @@ db.prepare(`
         starboard_threshold INTEGER DEFAULT 3,
         starboard_emoji TEXT DEFAULT '⭐',
         starboard_self_star INTEGER DEFAULT 0,
-        starboard_nsfw INTEGER DEFAULT 0
+        starboard_nsfw INTEGER DEFAULT 0,
+
+        -- ══ Música ══════════════════════════════════════════
+        music_volume INTEGER DEFAULT 100,
+        music_dj_role TEXT,
+        music_text_channel TEXT,
+        music_max_queue INTEGER DEFAULT 100,
+        music_247 INTEGER DEFAULT 0,
+        music_autoplay INTEGER DEFAULT 0,
+        music_filters_enabled INTEGER DEFAULT 1,
+        music_announce INTEGER DEFAULT 1,
+        music_leave_timeout INTEGER DEFAULT 300000
+        -- ════════════════════════════════════════════════════
     )
 `).run();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. ECONOMÍA Y PROGRESO
@@ -139,6 +155,7 @@ db.prepare(`
     )
 `).run();
 
+
 db.prepare(`
     CREATE TABLE IF NOT EXISTS levels (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,13 +169,14 @@ db.prepare(`
     )
 `).run();
 
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 3. LOGROS (CORREGIDO CON UNIQUE)
 // ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS achievements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guild_id TEXT, -- NULL para globales
+        guild_id TEXT,
         key TEXT NOT NULL,
         name TEXT NOT NULL,
         description TEXT NOT NULL,
@@ -167,9 +185,10 @@ db.prepare(`
         threshold INTEGER DEFAULT 1,
         secret INTEGER DEFAULT 0,
         global INTEGER DEFAULT 1,
-        UNIQUE(guild_id, key) -- Evita duplicados por servidor/llave
+        UNIQUE(guild_id, key)
     )
 `).run();
+
 
 db.prepare(`
     CREATE TABLE IF NOT EXISTS user_achievements (
@@ -181,6 +200,7 @@ db.prepare(`
         UNIQUE(guild_id, user_id, achievement_key)
     )
 `).run();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 4. MODERACIÓN Y LOGS
@@ -196,6 +216,7 @@ db.prepare(`
     )
 `).run();
 
+
 db.prepare(`
     CREATE TABLE IF NOT EXISTS mod_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,6 +230,7 @@ db.prepare(`
         active INTEGER DEFAULT 1
     )
 `).run();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 5. SISTEMAS VARIOS (GIVEAWAYS, POLLS, SUGGESTIONS)
@@ -229,6 +251,7 @@ db.prepare(`
     )
 `).run();
 
+
 db.prepare(`
     CREATE TABLE IF NOT EXISTS suggestions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -244,6 +267,42 @@ db.prepare(`
         timestamp INTEGER NOT NULL
     )
 `).run();
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 6. MÚSICA — PLAYLISTS GUARDADAS POR USUARIO
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS music_playlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        tracks TEXT NOT NULL DEFAULT '[]',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        UNIQUE(guild_id, user_id, name)
+    )
+`).run();
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 7. MÚSICA — HISTORIAL DE REPRODUCCIÓN
+// ══════════════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS music_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        duration INTEGER DEFAULT 0,
+        thumbnail TEXT,
+        source TEXT DEFAULT 'youtube',
+        played_at INTEGER NOT NULL
+    )
+`).run();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // MIGRACIONES DINÁMICAS (Para actualizaciones futuras sin borrar la DB)
@@ -262,12 +321,26 @@ function migrateTable(tableName, columns) {
     }
 }
 
+
 // Ejecutar migraciones por seguridad
 migrateTable('guild_settings', {
-    xp_enabled: 'INTEGER DEFAULT 1',
+    xp_enabled:      'INTEGER DEFAULT 1',
     economy_enabled: 'INTEGER DEFAULT 1',
-    starboard_emoji: "TEXT DEFAULT '⭐'"
+    starboard_emoji: "TEXT DEFAULT '⭐'",
+
+    // ── Música (migración segura para DBs ya existentes) ────
+    music_volume:          'INTEGER DEFAULT 100',
+    music_dj_role:         'TEXT',
+    music_text_channel:    'TEXT',
+    music_max_queue:       'INTEGER DEFAULT 100',
+    music_247:             'INTEGER DEFAULT 0',
+    music_autoplay:        'INTEGER DEFAULT 0',
+    music_filters_enabled: 'INTEGER DEFAULT 1',
+    music_announce:        'INTEGER DEFAULT 1',
+    music_leave_timeout:   'INTEGER DEFAULT 300000'
+    // ────────────────────────────────────────────────────────
     // Añade aquí cualquier columna nueva que inventes en el futuro
 });
+
 
 module.exports = db;
