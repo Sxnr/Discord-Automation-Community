@@ -2,7 +2,8 @@ const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const db = require('../database/db');
 
-// Eliminamos ffmpeg-static para usar el del sistema, que es más estable
+// IMPORTANTE: Aquí NO debe haber ninguna línea que mencione 'ffmpeg-static'
+
 let _player = null;
 
 async function initPlayer(client) {
@@ -12,7 +13,7 @@ async function initPlayer(client) {
         skipFFmpeg: false,
         ytdlOptions: {
             quality: 'highestaudio',
-            highWaterMark: 1 << 25 // Buffer de 32MB para evitar cortes
+            highWaterMark: 1 << 25 
         }
     });
 
