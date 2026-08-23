@@ -18,6 +18,7 @@ const componentHandlers = [
     require('../components/verify'),
     require('../components/helpSelect'),
     require('../components/meme'),
+    require('../components/rules'),
 ];
 
 module.exports = {
