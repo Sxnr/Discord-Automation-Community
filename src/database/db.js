@@ -530,7 +530,8 @@ migrateTable('guild_settings', {
     music_autoplay:        'INTEGER DEFAULT 0',
     music_filters_enabled: 'INTEGER DEFAULT 1',
     music_announce:        'INTEGER DEFAULT 1',
-    music_leave_timeout:   'INTEGER DEFAULT 300000'
+    music_leave_timeout:   'INTEGER DEFAULT 300000',
+    language:               "TEXT DEFAULT 'es'"
     // ────────────────────────────────────────────────────────
     // Añade aquí cualquier columna nueva que inventes en el futuro
 });

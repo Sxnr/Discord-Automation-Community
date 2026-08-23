@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, version } = require('discord.js');
 const os = require('node:os');
 const { brandFooter } = require('../../utils/embeds');
+const { t } = require('../../utils/i18n');
 
 module.exports = {
     category: 'utility',
@@ -26,7 +27,7 @@ module.exports = {
         const getStatusColor = (ms) => ms < 100 ? '#2ECC71' : ms < 250 ? '#F1C40F' : '#E74C3C';
 
         const statusEmbed = new EmbedBuilder()
-            .setTitle('🖥️ Sistema de Diagnóstico | Estado Global')
+            .setTitle(t(interaction.guildId, 'status.title'))
             .setColor(getStatusColor(ping))
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
@@ -35,17 +36,17 @@ module.exports = {
             )
             .addFields(
                 { 
-                    name: '🛰️ Red & Latencia', 
+                    name: '🛰️ ' + t(interaction.guildId, 'status.ping'), 
                     value: `**Websocket:** \`Estable\`\n**Latencia API:** \`${ping}ms\` ${getStatusEmoji(ping)}`, 
                     inline: true 
                 },
                 { 
-                    name: '💾 Hardware & RAM', 
+                    name: '💾 ' + t(interaction.guildId, 'status.ram'), 
                     value: `**Uso:** \`${ramUsed} MB\`\n**Capacidad:** \`${ramTotal} GB\``, 
                     inline: true 
                 },
                 { 
-                    name: '⏳ Ciclo de Vida', 
+                    name: '⏳ ' + t(interaction.guildId, 'status.uptime'), 
                     value: `**Uptime:** ${uptimeString}\n**Estado:** \`OPERATIVO\``, 
                     inline: true 
                 }

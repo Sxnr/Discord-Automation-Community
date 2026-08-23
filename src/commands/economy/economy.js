@@ -4,6 +4,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const { brandFooter } = require('../../utils/embeds');
+const { t } = require('../../utils/i18n');
 const db = require('../../database/db');
 const { checkAndUnlock } = require('./achievements');
 
@@ -236,13 +237,13 @@ module.exports = {
             `).get(guildId, total).r + 1;
 
             const embed = new EmbedBuilder()
-                .setTitle(`💰 Balance de ${target.username}`)
+                .setTitle(`💰 ${t(guildId, 'economy.balanceOf', { user: target.username })}`)
                 .setThumbnail(target.displayAvatarURL({ dynamic: true }))
                 .setColor(cfg.welcome_color || '#5865F2')
                 .addFields(
-                    { name: '👜 Cartera', value: fmt(guildId, eco.wallet), inline: true },
-                    { name: '🏦 Banco', value: fmt(guildId, eco.bank), inline: true },
-                    { name: '💎 Total', value: fmt(guildId, total), inline: true },
+                    { name: t(guildId, 'economy.wallet'), value: fmt(guildId, eco.wallet), inline: true },
+                    { name: t(guildId, 'economy.bank'), value: fmt(guildId, eco.bank), inline: true },
+                    { name: t(guildId, 'economy.total'), value: fmt(guildId, total), inline: true },
                     { name: '📈 Total ganado', value: fmt(guildId, eco.total_earned), inline: true },
                     { name: '🏆 Posición global', value: `#${rank}`, inline: true },
                 )

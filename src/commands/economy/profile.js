@@ -5,6 +5,7 @@ const {
 } = require('discord.js');
 const db = require('../../database/db');
 const { brandFooter } = require('../../utils/embeds');
+const { t } = require('../../utils/i18n');
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function getProfile(guildId, userId) {
@@ -181,7 +182,7 @@ module.exports = {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle(`${profile.fav_emoji || '⭐'} Perfil de ${target.username}`)
+                .setTitle(`${profile.fav_emoji || '⭐'} ${t(guildId, 'profile.title', { user: target.username })}`)
                 .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setColor(profile.color || '#5865F2')
                 .setDescription(profile.bio ? `*${profile.bio}*` : '_Sin biografía_')
