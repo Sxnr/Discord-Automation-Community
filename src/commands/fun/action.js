@@ -215,8 +215,8 @@ module.exports = {
             }
         } catch { /* nekos.best no disponible */ }
 
-        // 2. Tenor si hay API key
-        if (!gifUrl && process.env.TENOR_API_KEY) {
+        // 2. GIPHY si hay API key (Tenor cerró su API para devs en 2024/2025)
+        if (!gifUrl && process.env.GIPHY_KEY) {
             try {
                 const queries = {
                     hug:      'anime hug',
@@ -233,12 +233,12 @@ module.exports = {
                     blush:    'anime blush embarrassed',
                 };
                 const q   = queries[accion] || `anime ${accion}`;
-                const res = await fetch(`https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${process.env.TENOR_API_KEY}&limit=20&media_filter=gif`);
+                const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=${process.env.GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=20&rating=pg-13&lang=es`);
                 const data = await res.json();
-                const results = data?.results || [];
+                const results = data?.data || [];
                 if (results.length) {
                     const pick = results[Math.floor(Math.random() * results.length)];
-                    gifUrl = pick.media_formats?.gif?.url || null;
+                    gifUrl = pick.images?.original?.url || null;
                 }
             } catch { /* sin conexión o key inválida */ }
         }
