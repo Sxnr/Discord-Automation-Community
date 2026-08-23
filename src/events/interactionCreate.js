@@ -19,6 +19,7 @@ const componentHandlers = [
     require('../components/helpSelect'),
     require('../components/meme'),
     require('../components/rules'),
+    require('../components/musicControls'),
 ];
 
 module.exports = {

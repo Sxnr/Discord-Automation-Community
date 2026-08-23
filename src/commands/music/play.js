@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { brandFooter } = require('../../utils/embeds');
 const { getPlayer, checkDJ, sameChannel } = require('../../music/player');
+const { musicControlRow } = require('../../components/musicControls');
 const { detectSpotify, getSpotifyTrackInfo } = require('../../music/spotifyHelper');
 const db = require('../../database/db');
 
@@ -136,7 +137,7 @@ module.exports = {
 
             if (isSpotify) embed.setFooter({ text: '🎵 Spotify resuelto vía YouTube/SoundCloud' });
 
-            return interaction.editReply({ embeds: [embed] });
+            return interaction.editReply({ embeds: [embed], components: [musicControlRow()] });
 
         } catch (err) {
             console.error('[Music:play]', err);

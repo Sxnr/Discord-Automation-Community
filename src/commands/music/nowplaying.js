@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { brandFooter } = require('../../utils/embeds');
 const { getPlayer, detectSourceLabel } = require('../../music/player');
+const { musicControlRow } = require('../../components/musicControls');
 
 module.exports = {
     category: 'music',
@@ -45,6 +46,6 @@ module.exports = {
             )
             .setFooter({ text: `${Math.round(progress)}% completado` });
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.reply({ embeds: [embed], components: [musicControlRow()] });
     },
 };
