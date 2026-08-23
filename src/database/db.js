@@ -664,6 +664,20 @@ db.prepare(`
 `).run();
 
 
+// ════════════════════════════════════════════════════════════════════
+// 22. ESTADÍSTICAS DE USO DE COMANDOS (Analytics)
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS command_stats (
+        guild_id TEXT,
+        command  TEXT,
+        user_id  TEXT,
+        used_at  INTEGER
+    )
+`).run();
+db.prepare(`CREATE INDEX IF NOT EXISTS idx_cmdstats_guild ON command_stats(guild_id, used_at)`).run();
+
+
 // ── Migraciones de tablas renombradas (compatibilidad con el código) ──
 function tableExists(name) {
     return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);

@@ -1,4 +1,5 @@
 const { Events, MessageFlags } = require('discord.js');
+const db = require('../database/db');
 
 // ── Manejadores de componentes (botones, menús, modales) ──
 // Cada módulo exporta una función async que devuelve `true` si manejó la interacción.
@@ -29,6 +30,11 @@ module.exports = {
         if (interaction.isChatInputCommand()) {
             const command = interaction.client.commands.get(interaction.commandName);
             if (!command) return;
+
+            try {
+                db.prepare('INSERT INTO command_stats (guild_id, command, user_id, used_at) VALUES (?, ?, ?, ?)')
+                    .run(interaction.guildId, interaction.commandName, interaction.user.id, Date.now());
+            } catch { /* no crítico */ }
 
             try {
                 await command.execute(interaction);
