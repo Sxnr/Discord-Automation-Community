@@ -44,7 +44,7 @@ module.exports = {
                     { name: '❓ Pregunta', value: pregunta },
                     { name: '🔮 Respuesta', value: `**${response.text}**` }
                 )
-                .setFooter({ text: `Preguntado por ${interaction.user.tag}` })
+                .setFooter(brandFooter(interaction.client))
                 .setTimestamp()
             ]
         });

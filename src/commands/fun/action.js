@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 // ── GIFs de respaldo por acción (anime) ───────────────────────────────────
 const FALLBACK_GIFS = {

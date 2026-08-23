@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const db = require('../../database/db');
 const { use } = require('react');
 

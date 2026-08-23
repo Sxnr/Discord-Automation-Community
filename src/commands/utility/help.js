@@ -2,6 +2,7 @@ const {
     SlashCommandBuilder, EmbedBuilder, ActionRowBuilder,
     StringSelectMenuBuilder, MessageFlags
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 // ── Metadatos por categoría ─────────────────────────────────────────────────
 const CATEGORY_META = {

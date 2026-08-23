@@ -2,6 +2,7 @@ const {
     SlashCommandBuilder, EmbedBuilder,
     ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const games = new Map();
 

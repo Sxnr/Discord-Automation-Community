@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const ANIMALS = {
     perro:    { endpoint: 'https://some-random-api.com/animal/dog',      emoji: '🐶', color: '#C8A96E', nombre: 'Perro'    },
@@ -76,7 +77,7 @@ module.exports = {
             .setColor(animal.color)
             .setImage(imageUrl)
             .addFields({ name: '📚 Dato curioso', value: fact })
-            .setFooter({ text: `Solicitado por ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         return interaction.editReply({ embeds: [embed] });

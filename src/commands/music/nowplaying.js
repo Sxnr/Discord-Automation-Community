@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const { getPlayer, detectSourceLabel } = require('../../music/player');
 
 module.exports = {

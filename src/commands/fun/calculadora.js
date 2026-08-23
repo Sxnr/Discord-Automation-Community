@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 function evalSeguro(expresion) {
     const peligroso = /\b(require|import|process|global|__dirname|__filename|eval|Function|prototype|constructor|window|document|fetch|fs|exec|spawn|Buffer|setTimeout|setInterval)\b/i;
@@ -83,7 +84,7 @@ module.exports = {
                     { name: '📥 Expresión', value: `\`${input}\`` },
                     { name: '✅ Resultado', value: `## \`${formatearResultado(resultado)}\`` },
                 )
-                .setFooter({ text: `Solicitado por ${interaction.user.username}` })
+                .setFooter(brandFooter(interaction.client))
                 .setTimestamp()
             ],
         });

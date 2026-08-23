@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 // GNews API — gratis, sin restricción de host, 100 req/día
 // Registro gratuito en: https://gnews.io (no requiere tarjeta)
@@ -100,7 +101,7 @@ module.exports = {
             .setTitle(`${info.emoji} Noticias — ${info.name}`)
             .setDescription(lines)
             .setColor(info.color)
-            .setFooter({ text: `Solicitado por ${interaction.user.username} · GNews` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         const firstImg = articles.find(a => a.image)?.image;

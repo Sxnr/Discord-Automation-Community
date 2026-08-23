@@ -3,6 +3,7 @@ const {
     MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle,
     StringSelectMenuBuilder
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const ms = require('ms');
 const db = require('../../database/db');
 

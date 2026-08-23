@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const SUBREDDITS = ['memes', 'dankmemes', 'me_irl', 'AdviceAnimals', 'ProgrammerHumor', 'wholesomememes', 'funny'];
 
@@ -55,7 +56,7 @@ module.exports = {
                 { name: '⬆️ Upvotes',   value: post.ups?.toLocaleString('es-CL') || '?', inline: true },
                 { name: '📌 Subreddit', value: `r/${post.subreddit}`,                      inline: true },
             )
-            .setFooter({ text: `Por u/${post.author} • Solicitado por ${interaction.user.username}` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -92,7 +93,7 @@ module.exports = {
                 { name: '⬆️ Upvotes',   value: post.ups?.toLocaleString('es-CL') || '?', inline: true },
                 { name: '📌 Subreddit', value: `r/${post.subreddit}`,                      inline: true },
             )
-            .setFooter({ text: `Por u/${post.author} • Solicitado por ${interaction.user.username}` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(

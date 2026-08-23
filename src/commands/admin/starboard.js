@@ -2,6 +2,7 @@ const {
     SlashCommandBuilder, EmbedBuilder,
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const db = require('../../database/db');
 
 module.exports = {

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 function getShipEmoji(pct) {
     if (pct >= 90) return '💍';
@@ -53,7 +54,7 @@ module.exports = {
                     { name: `💘 Compatibilidad: ${pct}%`, value: `\`${getShipBar(pct)}\` **${pct}%**` },
                     { name: '💬 Veredicto', value: getShipText(pct) }
                 )
-                .setFooter({ text: `Solicitado por ${interaction.user.tag}` })
+                .setFooter(brandFooter(interaction.client))
                 .setTimestamp()
             ]
         });

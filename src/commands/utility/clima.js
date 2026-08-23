@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const ICONS = {
     '01d':'☀️','01n':'🌙','02d':'⛅','02n':'⛅','03d':'☁️','03n':'☁️',
@@ -109,7 +110,7 @@ module.exports = {
                 ...(extras ? [{ name: '🌧️ Precipitación', value: extras, inline: false }] : []),
                 { name: '📅 Próximas horas', value: forecastLines },
             )
-            .setFooter({ text: `Solicitado por ${interaction.user.username} · OpenWeatherMap` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         return interaction.editReply({ embeds: [embed] });

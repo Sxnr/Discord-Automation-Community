@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const db = require('../../database/db');
 
 function xpForLevel(level) {

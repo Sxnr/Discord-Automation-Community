@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 function esURLValida(str) {
     try {
@@ -70,7 +71,7 @@ module.exports = {
                 { name: '✅ URL corta',    value: `**${urlCorta}**` },
                 { name: '📊 Estadísticas', value: `📏 Original: **${urlInput.length}** caracteres\n📐 Corta: **${urlCorta.length}** caracteres\n📉 Ahorro: **${ahorro}%**` },
             )
-            .setFooter({ text: `Solicitado por ${interaction.user.username} • TinyURL` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(

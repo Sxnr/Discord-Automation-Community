@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const { getPlayer } = require('../../music/player');
 
 const PAGE_SIZE = 10;

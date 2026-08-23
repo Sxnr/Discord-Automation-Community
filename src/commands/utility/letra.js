@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 module.exports = {
     category: 'fun',
@@ -74,7 +75,7 @@ module.exports = {
             .setTitle(`🎵 ${title} — ${artist}`)
             .setDescription(desc)
             .setColor('#FFFF64')
-            .setFooter({ text: `Solicitado por ${interaction.user.username} · Genius · La letra completa está en el botón` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         if (thumb) embed.setThumbnail(thumb);

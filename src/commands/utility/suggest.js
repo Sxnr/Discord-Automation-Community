@@ -3,6 +3,7 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
     PermissionFlagsBits
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const db = require('../../database/db');
 const { buildEmbed, buildVoteRow } = require('../../utils/suggestHelpers');
 

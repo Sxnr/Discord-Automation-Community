@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const IDIOMAS = {
     es: { nombre: 'Español',   flag: '🇪🇸' },
@@ -66,7 +67,7 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setTitle(`${info.flag} ${palabra}${phonetic ? `  \`${phonetic}\`` : ''}`)
             .setColor('#5865F2')
-            .setFooter({ text: `Solicitado por ${interaction.user.username} • dictionaryapi.dev` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         for (const meaning of meanings) {

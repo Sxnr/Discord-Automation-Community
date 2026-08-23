@@ -3,6 +3,7 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const db = require('../../database/db');
 const { checkAndUnlock } = require('./achievements');
 
@@ -245,7 +246,7 @@ module.exports = {
                     { name: '📈 Total ganado', value: fmt(guildId, eco.total_earned), inline: true },
                     { name: '🏆 Posición global', value: `#${rank}`, inline: true },
                 )
-                .setFooter({ text: `Solicitado por ${interaction.user.tag}` })
+                .setFooter(brandFooter(interaction.client))
                 .setTimestamp();
 
             return interaction.reply({ embeds: [embed] });

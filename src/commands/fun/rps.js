@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const CHOICES = {
     piedra:   { emoji: '🪨', beats: 'tijera' },

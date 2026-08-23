@@ -3,6 +3,7 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle,
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const db = require('../../database/db');
 const { checkAndUnlock } = require('../economy/achievements');
 
@@ -366,7 +367,7 @@ module.exports = {
                     { name: '⏱️ Tiempo',     value: `${ANSWER_TIME / 1000}s`,  inline: true },
                     ...(question.source === 'otdb' ? [{ name: '🌐 Fuente', value: 'Open Trivia DB', inline: true }] : [])
                 )
-                .setFooter({ text: `Solicitado por ${interaction.user.tag}` })
+                .setFooter(brandFooter(interaction.client))
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed], components: [row] });

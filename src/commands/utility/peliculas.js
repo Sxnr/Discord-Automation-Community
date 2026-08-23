@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const TMDB   = 'https://api.themoviedb.org/3';
 const IMG    = 'https://image.tmdb.org/t/p/w500';
@@ -91,7 +92,7 @@ module.exports = {
                 ...(revenue ? [{ name: '💵 Recaudación', value: revenue, inline: true }] : []),
                 ...(detail.status ? [{ name: '📌 Estado', value: detail.status, inline: true }] : []),
             )
-            .setFooter({ text: `Solicitado por ${interaction.user.username} · TMDB` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         if (detail.poster_path)   embed.setThumbnail(`${IMG}${detail.poster_path}`);

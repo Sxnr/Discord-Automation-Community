@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 module.exports = {
     category: 'fun',
@@ -40,7 +41,7 @@ module.exports = {
                 { name: '🤖 Bot',     value: target.bot ? '`Sí`' : '`No`',         inline: true },
                 { name: '📅 Cuenta',  value: `<t:${Math.floor(target.createdTimestamp / 1000)}:D>`, inline: true }
             )
-            .setFooter({ text: `Solicitado por ${interaction.user.tag}` })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         if (bannerUrl) embed.addFields({ name: '🎨 Banner', value: '[Ver banner](' + bannerUrl + ')', inline: true });
