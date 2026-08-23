@@ -450,7 +450,7 @@ db.prepare(`
 // 15. ECONOMÍA — TIENDA E INVENTARIO
 // ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
-    CREATE TABLE IF NOT EXISTS shop (
+    CREATE TABLE IF NOT EXISTS shop_items (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         guild_id    TEXT NOT NULL,
         name        TEXT NOT NULL,
@@ -459,7 +459,9 @@ db.prepare(`
         emoji       TEXT DEFAULT '🛍️',
         role_id     TEXT,
         stock       INTEGER DEFAULT -1,
-        created_at  INTEGER NOT NULL,
+        type        TEXT DEFAULT 'item',
+        available   INTEGER DEFAULT 1,
+        timestamp   INTEGER,
         UNIQUE(guild_id, name)
     )
 `).run();
@@ -469,9 +471,9 @@ db.prepare(`
         id       INTEGER PRIMARY KEY AUTOINCREMENT,
         guild_id TEXT NOT NULL,
         user_id  TEXT NOT NULL,
-        item     TEXT NOT NULL,
+        item_id  INTEGER NOT NULL,
         quantity INTEGER DEFAULT 1,
-        UNIQUE(guild_id, user_id, item)
+        UNIQUE(guild_id, user_id, item_id)
     )
 `).run();
 
@@ -535,6 +537,183 @@ migrateTable('guild_settings', {
 
 
 // ══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// 15b. TRANSACCIONES ECONÓMICAS
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS transactions (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id  TEXT NOT NULL,
+        user_id   TEXT NOT NULL,
+        type      TEXT NOT NULL,
+        amount    INTEGER NOT NULL,
+        detail    TEXT,
+        timestamp INTEGER NOT NULL
+    )
+`).run();
+
+// ════════════════════════════════════════════════════════════════════
+// 16. MASCOTAS (PETS)
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS pets (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        user_id     TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        type        TEXT NOT NULL,
+        emoji       TEXT,
+        hunger      INTEGER DEFAULT 100,
+        happiness   INTEGER DEFAULT 100,
+        health      INTEGER DEFAULT 100,
+        energy      INTEGER DEFAULT 100,
+        level       INTEGER DEFAULT 1,
+        xp          INTEGER DEFAULT 0,
+        last_feed   INTEGER DEFAULT 0,
+        last_play   INTEGER DEFAULT 0,
+        last_sleep  INTEGER DEFAULT 0,
+        last_heal   INTEGER DEFAULT 0,
+        alive       INTEGER DEFAULT 1,
+        born_at     INTEGER NOT NULL,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ════════════════════════════════════════════════════════════════════
+// 17. ESTADÍSTICAS DE TRIVIA
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS trivia_stats (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        user_id     TEXT NOT NULL,
+        correct     INTEGER DEFAULT 0,
+        wrong       INTEGER DEFAULT 0,
+        streak      INTEGER DEFAULT 0,
+        best_streak INTEGER DEFAULT 0,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ════════════════════════════════════════════════════════════════════
+// 18. VERIFICACIÓN DE USUARIOS
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS verifications (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        user_id     TEXT NOT NULL,
+        status      TEXT DEFAULT 'pending',
+        method      TEXT,
+        code        TEXT,
+        attempts    INTEGER DEFAULT 0,
+        verified_at INTEGER,
+        timestamp   INTEGER,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+// ════════════════════════════════════════════════════════════════════
+// 19. PANELES DE ROLES POR REACCIÓN
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS reaction_role_panels (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
+        message_id  TEXT NOT NULL,
+        title       TEXT,
+        description TEXT,
+        color       TEXT DEFAULT '#5865F2',
+        mode        TEXT DEFAULT 'single',
+        timestamp   INTEGER,
+        UNIQUE(guild_id, message_id)
+    )
+`).run();
+
+
+// ════════════════════════════════════════════════════════════════════
+// 20. PREGUNTAS DE TRIVIA (PERSONALIZADAS)
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS trivia_questions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id    TEXT NOT NULL,
+        question    TEXT NOT NULL,
+        answer      TEXT NOT NULL,
+        options     TEXT NOT NULL,
+        category    TEXT DEFAULT '💰 General',
+        difficulty  TEXT DEFAULT 'medium',
+        global      INTEGER DEFAULT 0
+    )
+`).run();
+
+
+// ── Migraciones de tablas renombradas (compatibilidad con el código) ──
+function tableExists(name) {
+    return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);
+}
+
+// shop -> shop_items (esquema correcto, preservando datos)
+if (tableExists('shop_items')) {
+    const shopCols = db.prepare('PRAGMA table_info(shop_items)').all().map(c => c.name);
+    if (shopCols.includes('created_at')) {
+        db.prepare('ALTER TABLE shop_items RENAME TO shop_items_old').run();
+        console.log('[DB] Migración: shop_items con esquema obsoleto respaldada');
+    }
+}
+if (!tableExists('shop_items')) {
+    db.prepare(`
+        CREATE TABLE shop_items (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id    TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            description TEXT,
+            price       INTEGER NOT NULL,
+            emoji       TEXT DEFAULT '🛍️',
+            role_id     TEXT,
+            type        TEXT DEFAULT 'item',
+            stock       INTEGER DEFAULT -1,
+            available   INTEGER DEFAULT 1,
+            timestamp   INTEGER,
+            UNIQUE(guild_id, name)
+        )
+    `).run();
+}
+if (tableExists('shop')) {
+    db.prepare(`
+        INSERT OR IGNORE INTO shop_items (guild_id, name, description, price, emoji, role_id, stock)
+        SELECT guild_id, name, description, price, emoji, role_id, stock FROM shop
+    `).run();
+    db.prepare('DROP TABLE shop').run();
+    console.log('[DB] Migración: datos de "shop" movidos a "shop_items"');
+}
+migrateTable('shop_items', {
+    type:      "TEXT DEFAULT 'item'",
+    available: 'INTEGER DEFAULT 1',
+    timestamp: 'INTEGER',
+});
+
+// inventory: columna 'item' -> 'item_id'
+if (tableExists('inventory')) {
+    const invCols = db.prepare('PRAGMA table_info(inventory)').all().map(c => c.name);
+    if (!invCols.includes('item_id')) {
+        db.prepare('ALTER TABLE inventory RENAME TO inventory_old').run();
+        db.prepare(`
+            CREATE TABLE inventory (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id  TEXT NOT NULL,
+                user_id   TEXT NOT NULL,
+                item_id   INTEGER NOT NULL,
+                quantity  INTEGER DEFAULT 1,
+                UNIQUE(guild_id, user_id, item_id)
+            )
+        `).run();
+        console.log('[DB] Migración: "inventory" recreada con columna "item_id"');
+    }
+}
+
+
 // 11b. IA — CONFIGURACIÓN DE MODERACIÓN POR IA
 // ══════════════════════════════════════════════════════════════════
 db.prepare(`
