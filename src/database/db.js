@@ -171,6 +171,25 @@ db.prepare(`
 
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 2b. PERFILES DE USUARIO
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS profiles (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id      TEXT NOT NULL,
+        user_id       TEXT NOT NULL,
+        bio           TEXT DEFAULT '',
+        color         TEXT DEFAULT '#5865F2',
+        banner_url    TEXT,
+        timezone      TEXT DEFAULT 'UTC',
+        fav_emoji     TEXT DEFAULT '⭐',
+        socials       TEXT DEFAULT '{}',
+        birthday_show INTEGER DEFAULT 1,
+        UNIQUE(guild_id, user_id)
+    )
+`).run();
+
+
 // 3. LOGROS (CORREGIDO CON UNIQUE)
 // ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
