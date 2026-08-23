@@ -314,6 +314,8 @@ db.prepare(`
         channel_id TEXT    NOT NULL,
         message    TEXT    NOT NULL,
         remind_at  INTEGER NOT NULL,
+        sent       INTEGER DEFAULT 0,
+        timestamp  INTEGER,
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
 `).run();
@@ -405,6 +407,7 @@ db.prepare(`
         month    INTEGER NOT NULL,
         day      INTEGER NOT NULL,
         year     INTEGER,
+        notified INTEGER DEFAULT 0,
         UNIQUE(guild_id, user_id)
     )
 `).run();
@@ -476,6 +479,15 @@ migrateTable('reports', {
     message_id: 'TEXT',
 });
 
+migrateTable('reminders', {
+    sent:      'INTEGER DEFAULT 0',
+    timestamp: 'INTEGER',
+});
+
+migrateTable('birthdays', {
+    notified: 'INTEGER DEFAULT 0',
+});
+
 migrateTable('server_events', {
     location: 'TEXT',
     ends_at:  'INTEGER',
@@ -501,6 +513,21 @@ migrateTable('guild_settings', {
     // ────────────────────────────────────────────────────────
     // Añade aquí cualquier columna nueva que inventes en el futuro
 });
+
+
+// ══════════════════════════════════════════════════════════════════
+// 11b. IA — CONFIGURACIÓN DE MODERACIÓN POR IA
+// ══════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS ai_mod_settings (
+        guild_id     TEXT PRIMARY KEY,
+        enabled      INTEGER DEFAULT 0,
+        log_channel  TEXT,
+        action       TEXT    DEFAULT 'log',
+        threshold    REAL    DEFAULT 0.7,
+        ignore_roles TEXT    DEFAULT '[]'
+    )
+`).run();
 
 
 module.exports = db;

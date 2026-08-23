@@ -3,6 +3,17 @@ const { clientId, token } = require('./src/config'); // ➕ guildId ya no es nec
 const fs   = require('fs');
 const path = require('path');
 
+// Reordena recursivamente las opciones para que las requeridas
+// siempre estén antes que las opcionales (requisito de la API de Discord).
+// Evita el error 50035 sin tener que editar cada comando manualmente.
+function orderRequiredFirst(options) {
+    if (!Array.isArray(options)) return options;
+    const sorted = [...options].sort(
+        (a, b) => (a.required ? 0 : 1) - (b.required ? 0 : 1)
+    );
+    return sorted.map(o => (o.options ? { ...o, options: orderRequiredFirst(o.options) } : o));
+}
+
 const commands = [];
 const foldersPath    = path.join(__dirname, 'src/commands');
 const commandFolders = fs.readdirSync(foldersPath);
@@ -16,7 +27,9 @@ for (const folder of commandFolders) {
         const command  = require(filePath);
 
         if ('data' in command && 'execute' in command) {
-            commands.push(command.data.toJSON());
+            const json = command.data.toJSON();
+            json.options = orderRequiredFirst(json.options);
+            commands.push(json);
         } else {
             console.warn(`⚠️  El archivo ${file} no tiene 'data' o 'execute'.`);
         }

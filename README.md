@@ -1,492 +1,182 @@
-# 🤖 Discord Global Engine | Enterprise-Grade Automation
+# 🤖 Discord Global Engine
 
-Sistema de automatización modular y multi-servidor (Multi-Tenant) desarrollado en **Node.js** con **Discord.js v14** y **SQLite**.  
-Está pensado para comunidades escalables que necesitan configuración persistente por servidor, sistemas administrativos avanzados y módulos de engagement para sus usuarios.
+> Bot de Discord modular, multi-servidor (multi-tenant) y de código abierto, escrito en **Node.js** con **Discord.js v14**, **SQLite** y **moderación por IA**.
 
----
-
-## 💎 Características Destacadas
-
-### 📂 Arquitectura Multi-Servidor
-Cada servidor mantiene su propia configuración y datos gracias a una base de datos **SQLite**.  
-Esto permite aislar sistemas como economía, logros, perfiles, tickets, verificación, starboard y más.
-
-### 🎫 Sistema de Tickets
-- Paneles personalizables.
-- Prevención de spam y duplicados.
-- Generación de transcripts en HTML.
-- Envío de logs y registros administrativos.
-
-### 💰 Economía del Servidor
-Incluye un sistema completo de economía con:
-- Balance de cartera y banco.
-- Recompensas diarias.
-- Trabajo y crimen.
-- Robo entre usuarios.
-- Transferencias.
-- Tienda del servidor.
-- Inventario.
-- Historial de transacciones.
-- Configuración personalizada por servidor.
-
-### 🏆 Progresión y Recompensas
-El bot integra sistemas de progreso pensados para retención y gamificación:
-- Logros globales y personalizados.
-- Estadísticas de usuario.
-- Ranking de logros.
-- Perfiles personalizables.
-- Trivia con estadísticas y rachas.
-- Mascotas virtuales con niveles y necesidades.
-
-### ✅ Herramientas de Comunidad
-También incorpora módulos administrativos y sociales como:
-- Reaction Roles.
-- Verificación por botón o captcha.
-- Starboard.
-- Comandos utilitarios.
-- Configuración persistente del servidor.
-
-### 📊 Monitor del Sistema
-El comando `/status` permite revisar:
-- Latencia de la API.
-- Uso de memoria RAM.
-- Uptime del proceso.
-- Datos básicos del sistema operativo.
+Diseñado para comunidades que quieren un bot todo-en-uno: economía, juegos, música, moderación automática, perfiles, logros, tickets, verificación y mucho más — todo aislado y persistente **por servidor**.
 
 ---
 
-## 🛠️ Stack Tecnológico
+## ✨ Características principales
+
+- **🌐 Multi-tenant:** cada servidor tiene su propia configuración y base de datos aislada.
+- **💰 Economía completa:** cartera, banco, daily, trabajo, crimen, robo, tienda, inventario, transacciones y leaderboard.
+- **🧠 Moderación por IA:** detecta toxicidad, acoso, estafa y spam usando un LLM (o heurística de respaldo) y aplica `log` / `delete` / `warn` / `timeout`.
+- **🎵 Música:** reproduce desde YouTube/SoundCloud, cola, playlists guardadas, historial, controles DJ y configuración por servidor.
+- **🏆 Progresión:** logros automáticos, perfiles personalizables, trivia, mascotas virtuales y niveles/XP.
+- **🛡️ Administración:** AutoMod, warns, tickets con transcript, reaction roles, verificación (botón o captcha), starboard, sugerencias, reportes, encuestas, eventos y sorteos.
+- **🎮 Diversión:** trivia, ahorcado, tic-tac-toe, ruleta, dados, 8ball, memes, animales y más.
+- **🔌 APIs externas:** clima, noticias, películas, series, letras, definiciones y acortador de links.
+
+---
+
+## 🛠️ Stack tecnológico
 
 | Capa | Tecnología |
 |------|------------|
-| Runtime | Node.js |
+| Runtime | Node.js 18+ |
 | Framework | Discord.js v14 |
-| Base de datos | Better-SQLite3 |
-| Variables de entorno | Dotenv |
-| Desarrollo | Nodemon |
+| Base de datos | better-sqlite3 (WAL) |
+| Música | discord-player + @discord-player/extractor |
+| Variables de entorno | dotenv |
+| Desarrollo | nodemon |
+| Moderación IA | LLM OpenAI-compatible (opcional) |
 | Transcripts | discord-html-transcripts |
 
 ---
 
-## 🚀 Instalación y Despliegue
+## 🚀 Instalación
 
-### 1. Requisitos Previos
-Antes de iniciar, necesitas:
+### 1. Requisitos
+- **Node.js 18+** (better-sqlite3 v12 y Discord.js v14 lo requieren).
+- Una aplicación en el [Discord Developer Portal](https://discord.com/developers/applications).
+- **Intents privilegiados activados** en el portal: *Server Members Intent* y *Presence Intent* (los usa el bot).
 
-- **Node.js** v16.11.0 o superior.
-- Una aplicación creada en el [Discord Developer Portal](https://discord.com/developers/applications).
-- Haber ejecutado `npm install` para instalar las dependencias.
-
-### 2. Clonar el Proyecto
+### 2. Clonar e instalar
 ```bash
 git clone <TU_REPOSITORIO>
-cd <NOMBRE_DEL_PROYECTO>
+cd Discord-Automation-Community
 npm install
 ```
 
-### 3. Configurar Variables de Entorno
-Crea un archivo `.env` en la raíz del proyecto:
+### 3. Configurar variables de entorno
+Crea un archivo `.env` en la raíz:
 
 ```env
 TOKEN=tu_token_del_bot
 CLIENT_ID=tu_client_id
-```
 
-Si más adelante agregas APIs externas, puedes extenderlo con claves como:
-
-```env
+# APIs externas (opcional)
 WEATHER_API_KEY=
 NEWS_API_KEY=
 TMDB_API_KEY=
 GENIUS_API_KEY=
+
+# Moderación por IA (opcional pero recomendado)
+# Sin AI_API_KEY usa una heurística de respaldo.
+AI_API_KEY=sk-...            # Cualquier key compatible con OpenAI (o tu proveedor)
+AI_API_URL=                 # Endpoint (default: https://api.openai.com/v1/chat/completions)
+AI_MODEL=                   # Modelo (default: gpt-4o-mini)
 ```
 
-### 4. Scripts Disponibles
+> 💡 **Proveedores de IA gratuitos** (OpenAI-compatible): [Groq](https://console.groq.com) (`AI_API_URL=https://api.groq.com/openai/v1/chat/completions`, `AI_MODEL=llama-3.1-8b-instant`), OpenRouter, DeepSeek o Mistral (tier free).
 
+### 4. Registrar comandos y arrancar
 ```bash
+# Registra los slash commands GLOBALES (ejecuta solo al cambiar comandos)
 npm run deploy
-```
-Registra o actualiza los slash commands del bot.
 
-```bash
+# Desarrollo (recarga automática)
 npm run dev
-```
-Ejecuta el bot en desarrollo con recarga automática.
 
-```bash
+# Producción
 npm start
 ```
-Inicia el bot en modo producción.
+
+> ⏳ Los comandos globales pueden tardar **hasta 1 hora** en aparecer en servidores nuevos.
 
 ---
 
-## 📌 Módulos Implementados
+## 📌 Comandos
 
-## ⚙️ Núcleo y Utilidades
+> Todas las interacciones son **slash commands** (`/`). Usa `/help` para un menú interactivo por categorías.
 
-### `/settings`
-Configura ajustes persistentes del servidor, como canales de logs, opciones base y parámetros administrativos.
+### 🛡️ Administración (`/automod`, `/aimod`, `/settings`, `/warn`, `/mod`, `/reactionroles`, `/setup-tickets`, `/setup-welcome`, `/starboard`, `/verify`, `/xp`)
+Configuración del servidor, moderación automática y por IA, tickets, verificación, roles por reacción y niveles.
 
-### `/help`
-Muestra un menú interactivo con categorías dinámicas del bot.
+### 💰 Economía (`/economy`, `/achievements`, `/pet`, `/profile`)
+Balance, daily, trabajo, crimen, robo, tienda, inventario, logros, mascotas y perfiles.
 
-### `/status`
-Entrega información técnica sobre latencia, uptime, memoria y estado general del bot.
+### 🎮 Diversión (`/trivia`, `/hangman`, `/tictactoe`, `/slots`, `/dice`, `/rps`, `/8ball`, `/ship`, `/race`, `/meme`, `/animales`, `/avatar`, `/action`, `/calculadora`, `/acortar`, `/definicion`)
+Juegos y entretenimiento.
 
----
+### 🎵 Música (`/play`, `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/loop`, `/shuffle`, `/nowplaying`, `/playlist`, `/musicconfig`)
+Reproduce y gestiona música en canales de voz.
 
-## 🎫 Soporte
-
-### Sistema de Tickets
-Incluye un panel configurable para que los usuarios abran tickets de soporte.  
-Cuenta con medidas anti-spam, control por usuario y generación de transcript al cerrar.
+### 🛠️ Utilidad (`/help`, `/status`, `/serverinfo`, `/userinfo`, `/leaderboard`, `/rank`, `/birthday`, `/clima`, `/noticias`, `/peliculas`, `/series`, `/letra`, `/suggest`, `/report`, `/poll`, `/event`, `/giveaway`, `/reminder`)
+Información, utilidades comunitarias y APIs externas.
 
 ---
 
-## 💰 Economía
+## 🧠 Moderación por IA (`/aimod`)
 
-### `/economy balance`
-Muestra la cartera, banco, total acumulado y posición del usuario.
+Analiza cada mensaje y aplica una acción según un umbral de toxicidad.
 
-### `/economy daily`
-Permite reclamar una recompensa diaria con sistema de rachas.
+```bash
+/aimod setup enabled:true accion:delete umbral:50 log_channel:#logs
+/aimod status
+/aimod test "eres un idiota"   # prueba sin sancionar
+```
 
-### `/economy work`
-Da monedas cada cierto tiempo mediante trabajos aleatorios.
-
-### `/economy crime`
-Permite arriesgarse para ganar monedas o perder parte del dinero.
-
-### `/economy rob`
-Permite intentar robar a otro usuario del servidor.
-
-### `/economy pay`
-Transfiere monedas entre usuarios.
-
-### `/economy deposit`
-Deposita monedas desde la cartera al banco.
-
-### `/economy withdraw`
-Retira monedas desde el banco a la cartera.
-
-### `/economy shop`
-Lista los ítems disponibles en la tienda del servidor.
-
-### `/economy buy`
-Compra ítems o roles configurados en la tienda.
-
-### `/economy inventory`
-Muestra el inventario de un usuario.
-
-### `/economy transactions`
-Muestra el historial reciente de transacciones.
-
-### `/economy leaderboard`
-Ranking económico del servidor.
-
-### `/economy config`
-Permite configurar moneda, emoji, rewards y cooldowns.
-
-### `/economy give`
-Entrega monedas manualmente a un usuario.
-
-### `/economy take`
-Quita monedas manualmente a un usuario.
-
-### `/economy reset`
-Reinicia la economía de un usuario.
-
-### `/economy shop-add`
-Agrega ítems a la tienda.
-
-### `/economy shop-remove`
-Elimina ítems de la tienda.
+- **Motor:** LLM si defines `AI_API_KEY`, si no, heurística de respaldo (palabras tóxicas, estafas, spam).
+- **Acciones:** `log` (solo registrar), `delete`, `warn`, `timeout`.
+- **Permisividad:** entero del `1` al `100` (mayor = más permisivo).
 
 ---
 
-## 🏆 Logros
+## 🎵 Música y FFmpeg
 
-### `/achievements list`
-Muestra los logros disponibles, bloqueados o desbloqueados.
-
-### `/achievements stats`
-Permite ver el progreso de logros de un usuario.
-
-### `/achievements leaderboard`
-Ranking de usuarios con más logros desbloqueados.
-
-### `/achievements create`
-Crea logros personalizados para el servidor.
-
-### `/achievements delete`
-Elimina logros personalizados.
-
-### `/achievements grant`
-Otorga un logro manualmente a un usuario.
-
-### `/achievements revoke`
-Quita un logro manualmente a un usuario.
-
-### Logros Automáticos
-El sistema ya contempla desbloqueos automáticos asociados a:
-- Daily y rachas.
-- Ganancias totales.
-- Compras.
-- Trabajo.
-- Crimen.
-- Robos exitosos.
-- Trivia correcta y rachas.
-- Mascotas.
-- Nivel de mascota.
+El reproductor usa automáticamente el binario de `ffmpeg-static` empaquetado, por lo que **no necesitas instalar FFmpeg** en el sistema. Si prefieres usar el de tu sistema, define la variable de entorno `FFMPEG_PATH`.
 
 ---
 
-## 👤 Perfiles
+## 🧬 Estructura del proyecto
 
-### `/profile view`
-Muestra el perfil de un usuario con su personalización y progreso.
-
-### `/profile edit`
-Permite editar distintos campos del perfil.
-
-### `/profile socials`
-Permite agregar o modificar redes sociales y enlaces personales.
-
-### `/profile style`
-Permite personalizar colores, banner, bio y otros detalles visuales.
-
-> Ajusta estos nombres según los subcomandos exactos que tenga tu archivo de perfiles.
-
----
-
-## ❓ Trivia
-
-### `/trivia play`
-Genera una pregunta con botones interactivos.
-
-### `/trivia add`
-Agrega preguntas personalizadas para el servidor.
-
-### `/trivia remove`
-Elimina preguntas personalizadas.
-
-### `/trivia list`
-Lista preguntas propias del servidor.
-
-### `/trivia stats`
-Muestra estadísticas de precisión, correctas, incorrectas y rachas.
-
-### Banco de Preguntas
-El módulo utiliza:
-- Preguntas locales en español.
-- Preguntas personalizadas del servidor.
-- Integración con Open Trivia DB como respaldo.
+```
+src/
+├── index.js              # Cargador de comandos y eventos
+├── config.js             # Variables de entorno
+├── database/db.js        # Esquema SQLite + migraciones
+├── commands/             # Comandos por categoría (admin, economy, fun, music, utility)
+├── components/           # Handlers de botones/menús/modales (refactor de interactionCreate)
+├── events/               # Eventos (interactionCreate, messageCreate, ready, etc.)
+├── music/                # Player y helper de Spotify
+├── utils/                # Utilidades (embeds, aiModeration, suggest, giveaway)
+└── ...
+```
 
 ---
 
-## 🐾 Mascotas Virtuales
-
-### `/pet adopt`
-Permite adoptar una mascota pagando monedas del sistema económico.
-
-### `/pet status`
-Muestra hambre, felicidad, salud, energía, XP y nivel.
-
-### `/pet feed`
-Alimenta a la mascota.
-
-### `/pet play`
-Permite jugar con la mascota para subir felicidad y XP.
-
-### `/pet sleep`
-Recupera energía y algo de salud.
-
-### `/pet heal`
-Cura a la mascota a cambio de monedas.
-
-### `/pet rename`
-Cambia el nombre de la mascota.
-
-### `/pet release`
-Libera o elimina la mascota actual.
-
-### `/pet shop`
-Muestra los tipos de mascotas disponibles.
-
-### `/pet leaderboard`
-Ranking de mascotas del servidor.
-
-### Características
-- Decaimiento de stats con el tiempo.
-- Sistema de vida y muerte.
-- Niveles y experiencia.
-- Integración con logros.
-
----
-
-## 📌 Reaction Roles
-
-### `/reactionroles create-panel`
-Crea un panel de roles por botones.
-
-### `/reactionroles add-role`
-Agrega un rol a un panel existente.
-
-### `/reactionroles remove-role`
-Elimina un rol de un panel.
-
-### `/reactionroles list`
-Lista todos los paneles del servidor.
-
-### `/reactionroles delete-panel`
-Elimina un panel completo.
-
-### `/reactionroles refresh`
-Reconstruye los botones de un panel.
-
-### Modos soportados
-- **Toggle**: añade o quita el rol.
-- **Add**: solo añade el rol.
-- **Unique**: solo permite uno entre varios roles del panel.
-
----
-
-## ✅ Verificación
-
-### `/verify setup`
-Configura el sistema de verificación del servidor.
-
-### `/verify disable`
-Desactiva la verificación.
-
-### `/verify check`
-Revisa si un usuario está verificado.
-
-### `/verify force`
-Verifica manualmente a un usuario.
-
-### `/verify unverify`
-Quita la verificación a un usuario.
-
-### Métodos soportados
-- Verificación con botón.
-- Verificación con captcha numérico.
-
----
-
-## ⭐ Starboard
-
-### `/starboard setup`
-Configura el canal, emoji y mínimo de reacciones requeridas.
-
-### `/starboard disable`
-Desactiva el starboard.
-
-### `/starboard config`
-Muestra la configuración actual.
-
-### `/starboard top`
-Lista los mensajes más destacados del servidor.
-
-### Funcionalidades
-- Publicación automática al alcanzar el umbral.
-- Actualización del conteo en tiempo real.
-- Eliminación automática si baja del mínimo.
-- Protección contra self-star si se desactiva.
-
----
-
-## 🗃️ Base de Datos
-
-El proyecto está preparado para trabajar con tablas persistentes como:
-
-- `guild_settings`
-- `economy`
-- `transactions`
-- `shop_items`
-- `inventory`
-- `achievements`
-- `user_achievements`
-- `profiles`
-- `pets`
-- `trivia_questions`
-- `trivia_stats`
-- `reaction_role_panels`
-- `reaction_roles`
-- `verifications`
-- `starboard`
-
-Además, puede incluir otras tablas del núcleo del proyecto como tickets, logs, sugerencias, sorteos y módulos administrativos según tu estructura actual.
-
----
-
-## 🧭 Roadmap Actual
-
-## Fase 5 — APIs e Información
-Pendiente de implementación:
-
-- Fotos random — perros, gatos, pandas.
-- Memes random.
-- Clima por ciudad.
-- Noticias del día.
-- Info de películas y series.
-- Letras de canciones.
-- Traductor.
-- Definición de palabras.
-- Calculadora de expresiones.
-- Acortador de links.
-
-## Fase 6 — Economía
-Estado actual:
-
-- ✅ Balance, daily rewards.
-- ✅ Banco y transferencias entre usuarios.
-- ✅ Trabajo.
-- ✅ Robo.
-- ✅ Tienda de roles con monedas.
-- ✅ Inventario.
-- ❌ Inversiones con riesgo variable.
-
-## Fase 7 — Música
-Pendiente de implementación:
-
-- Reproducir desde YouTube/Spotify.
-- Cola de canciones.
-- Skip, pause, resume, stop.
-- Control de volumen.
-
-## Fase 8 — Infraestructura
-Pendiente:
-
-- Dashboard Web.
-
----
-
-## 📈 Resumen de Estado
+## 🧭 Roadmap
 
 | Fase | Estado |
 |------|--------|
 | Núcleo del bot | ✅ |
 | Tickets | ✅ |
 | Utilidades | ✅ |
-| Economía | ✅ Parcialmente completa |
-| Logros | ✅ |
-| Perfiles | ✅ |
-| Trivia | ✅ |
-| Mascotas | ✅ |
-| Reaction Roles | ✅ |
-| Verificación | ✅ |
-| Starboard | ✅ |
-| APIs externas | ❌ Pendiente |
-| Música | ❌ Pendiente |
-| Dashboard Web | ❌ Pendiente |
-| Inversiones | ❌ Pendiente |
+| Economía | ✅ (faltan inversiones) |
+| Logros / Perfiles / Trivia / Mascotas | ✅ |
+| Reaction Roles / Verificación / Starboard | ✅ |
+| APIs externas | ✅ |
+| Música | ✅ |
+| Moderación por IA | ✅ |
+| Dashboard Web | ⏳ Pendiente |
+| Inversiones (economía) | ⏳ Pendiente |
 
 ---
 
-## 🧑‍💻 Autor
+## 🤝 Contribuir
 
-**Francisco**  
-*Estudiante de Ingeniería Civil Informática*
+1. Haz fork del repositorio.
+2. Crea una rama: `git checkout -b feature/mi-mejora`.
+3. Instala dependencias y prueba con `npm run dev`.
+4. Abre un Pull Request describiendo el cambio.
 
 ---
+
+## 📄 Licencia
+
+ISC — libre para usar y modificar con atribución.
+
+## 👤 Autor
+
+**Francisco** — Estudiante de Ingeniería Civil Informática.

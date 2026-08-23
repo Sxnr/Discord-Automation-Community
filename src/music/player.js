@@ -2,18 +2,26 @@ const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const db = require('../database/db');
 
-// HE ELIMINADO LA LÍNEA 4 QUE CAUSABA EL ERROR (ffmpeg-static)
+// Usar el binario de FFmpeg empaquetado (ffmpeg-static) para que la música
+// funcione sin instalar FFmpeg en el sistema (Windows, Linux, macOS).
+// @discordjs/voice lee la variable de entorno FFMPEG_PATH automáticamente.
+try {
+    const ffmpegPath = require('ffmpeg-static');
+    if (ffmpegPath && !process.env.FFMPEG_PATH) {
+        process.env.FFMPEG_PATH = ffmpegPath;
+    }
+} catch { /* ffmpeg-static no disponible: se usará el FFmpeg del sistema si existe */ }
+
 let _player = null;
 
 async function initPlayer(client) {
     if (_player) return _player;
 
-    // El player usará automáticamente el FFmpeg instalado en tu servidor Linux
-    _player = new Player(client, { 
+    _player = new Player(client, {
         skipFFmpeg: false,
         ytdlOptions: {
             quality: 'highestaudio',
-            highWaterMark: 1 << 25 
+            highWaterMark: 1 << 25
         }
     });
 
