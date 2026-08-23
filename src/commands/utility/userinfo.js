@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const statusEmoji = {
     online:    '🟢 En línea',
@@ -118,10 +119,7 @@ module.exports = {
                     inline: true
                 }
             )
-            .setFooter({
-                text: `Solicitado por ${interaction.user.tag}`,
-                iconURL: interaction.user.displayAvatarURL()
-            })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         if (bannerURL) embed.setImage(bannerURL);

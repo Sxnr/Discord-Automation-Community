@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 
 const verificationLevels = {
     0: '🔓 Ninguna',
@@ -115,10 +116,7 @@ module.exports = {
                     inline: false
                 }
             )
-            .setFooter({
-                text: `Solicitado por ${interaction.user.tag}`,
-                iconURL: interaction.user.displayAvatarURL()
-            })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         if (bannerURL) embed.setImage(bannerURL);

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
+const { brandFooter } = require('../../utils/embeds');
 const { getPlayer, checkDJ, sameChannel } = require('../../music/player');
 const { detectSpotify, getSpotifyTrackInfo } = require('../../music/spotifyHelper');
 const db = require('../../database/db');
@@ -130,7 +131,8 @@ module.exports = {
                     { name: '⏱ Duración',    value: isPlaylist ? `${addedCount} canciones` : track.duration, inline: true },
                     { name: '📋 Posición',    value: queue.tracks.size > 0 ? `#${queue.tracks.size}` : '▶️ Ahora', inline: true },
                     { name: '👤 Pedido por',  value: `<@${interaction.user.id}>`, inline: true },
-                );
+                )
+                .setFooter(brandFooter(interaction.client));
 
             if (isSpotify) embed.setFooter({ text: '🎵 Spotify resuelto vía YouTube/SoundCloud' });
 

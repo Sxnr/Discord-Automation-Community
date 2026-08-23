@@ -4,6 +4,7 @@ const {
     PermissionFlagsBits, MessageFlags
 } = require('discord.js');
 const db = require('../../database/db');
+const { brandFooter } = require('../../utils/embeds');
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function getProfile(guildId, userId) {
@@ -223,7 +224,7 @@ module.exports = {
                         inline: false
                     }] : [])
                 )
-                .setFooter({ text: `ID: ${target.id}` })
+                .setFooter(brandFooter(interaction.client))
                 .setTimestamp();
 
             if (profile.banner_url) embed.setImage(profile.banner_url);

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, version } = require('discord.js');
 const os = require('node:os');
+const { brandFooter } = require('../../utils/embeds');
 
 module.exports = {
     category: 'utility',
@@ -55,10 +56,7 @@ module.exports = {
                     value: `> **Discord.js:** \`v${version}\`\n> **Node.js:** \`${process.version}\`\n> **Host OS:** \`${os.type()}\``
                 }
             )
-            .setFooter({ 
-                text: `Diagnóstico solicitado por: ${interaction.user.tag} • v2.1.0`, 
-                iconURL: interaction.user.displayAvatarURL({ dynamic: true }) 
-            })
+            .setFooter(brandFooter(interaction.client))
             .setTimestamp();
 
         // Respondemos de forma pública para que todos vean la salud del bot
