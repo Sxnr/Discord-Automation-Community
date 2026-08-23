@@ -7,6 +7,7 @@ const {
 const fs = require('node:fs');
 const path = require('node:path');
 const config = require('./config.js');
+const { checkEnv } = require('./utils/checkEnv');
 
 const client = new Client({
     intents: [
@@ -68,5 +69,8 @@ if (fs.existsSync(eventsPath)) {
         }
     }
 }
+
+// Chequeo de keys/APIs al arranque (no bloquea si faltan opcionales)
+checkEnv();
 
 client.login(config.token);

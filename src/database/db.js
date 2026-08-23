@@ -649,6 +649,20 @@ db.prepare(`
 `).run();
 
 
+// ════════════════════════════════════════════════════════════════════
+// 21. VOTOS (Top.gg / Disboard) Y RECOMPENSAS
+// ════════════════════════════════════════════════════════════════════
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS votes (
+        user_id     TEXT PRIMARY KEY,
+        guild_id    TEXT,
+        last_vote   INTEGER DEFAULT 0,
+        total       INTEGER DEFAULT 0,
+        streak      INTEGER DEFAULT 0
+    )
+`).run();
+
+
 // ── Migraciones de tablas renombradas (compatibilidad con el código) ──
 function tableExists(name) {
     return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);
