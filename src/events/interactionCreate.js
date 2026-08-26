@@ -41,11 +41,15 @@ module.exports = {
             try {
                 await command.execute(interaction);
             } catch (error) {
-                console.error('❌ Error en comando:', error);
-                const replyFn = interaction.deferred || interaction.replied
-                    ? interaction.followUp.bind(interaction)
-                    : interaction.reply.bind(interaction);
-                await replyFn({ content: '❌ Error ejecutando comando.', flags: [MessageFlags.Ephemeral] });
+                console.error('❌ Error en comando:', error?.code || '', error?.message || error);
+                // Si la interacción ya fue respondida (ej. ejecución duplicada), no reintentar.
+                if (interaction.replied || interaction.deferred) return;
+                try {
+                    await interaction.reply({ content: '❌ Error ejecutando comando.', flags: [MessageFlags.Ephemeral] });
+                } catch (e) {
+                    // Interacción ya gestionada por otra instancia/proceso: ignorar silenciosamente.
+                    console.error('   (no se pudo responder el error:', e?.code, ')');
+                }
             }
             return;
         }

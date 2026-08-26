@@ -276,7 +276,13 @@ module.exports = {
             }
             userCooldowns.set(userId, Date.now());
 
-            await interaction.deferReply();
+            try {
+                await interaction.deferReply();
+            } catch (e) {
+                // Interacción ya respondida/expirada (ej. ejecución duplicada). Abortar limpio.
+                console.error('[trivia] deferReply falló:', e?.code);
+                return;
+            }
 
             let question = null;
 

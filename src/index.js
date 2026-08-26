@@ -9,6 +9,19 @@ const path = require('node:path');
 const config = require('./config.js');
 const { checkEnv } = require('./utils/checkEnv');
 
+// Defensa: nunca dejamos que un rejection suelto crashee el proceso.
+process.on('unhandledRejection', (reason) => {
+    const code = reason?.code || (reason && reason.error?.code);
+    // 10062 (interacción expirada) y 40060 (ya respondida) son ruido esperado en ejecuciones duplicadas.
+    if (code === 10062 || code === 40060) return;
+    console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+    const code = err?.code;
+    if (code === 10062 || code === 40060) return;
+    console.error('[uncaughtException]', err);
+});
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
