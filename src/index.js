@@ -22,6 +22,14 @@ process.on('uncaughtException', (err) => {
     console.error('[uncaughtException]', err);
 });
 
+// discord.js re-emite como 'error' del Client las promesas no capturadas de
+// interacciones (p.ej. 10062/40060 en ejecuciones duplicadas). Lo absorbemos.
+client.on('error', (err) => {
+    const code = err?.code;
+    if (code === 10062 || code === 40060) return;
+    console.error('[client.error]', code || '', err?.message || err);
+});
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,

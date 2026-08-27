@@ -1,6 +1,19 @@
 const { Events, MessageFlags } = require('discord.js');
 const db = require('../database/db');
 
+// Red de seguridad: evita procesar la MISMA interacción dos veces en este proceso
+// (p.ej. si el listener se registrara doble). No protege contra 2 procesos distintos.
+const recentInteractions = new Set();
+function isDuplicate(id) {
+    if (!id || !recentInteractions.has(id)) return false;
+    return true;
+}
+function markSeen(id) {
+    if (!id) return;
+    recentInteractions.add(id);
+    setTimeout(() => recentInteractions.delete(id), 15000).unref?.();
+}
+
 // ── Manejadores de componentes (botones, menús, modales) ──
 // Cada módulo exporta una función async que devuelve `true` si manejó la interacción.
 const componentHandlers = [
@@ -26,9 +39,13 @@ module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction) {
 
-        // ════════════════════════════════════════
+        // Anti-duplicado en el mismo proceso (ignora si ya vimos este id hace <15s)
+        if (isDuplicate(interaction.id)) return;
+        markSeen(interaction.id);
+
+        // ═════════════════════════════════════════
         // 1. COMANDOS SLASH
-        // ════════════════════════════════════════
+        // ═════════════════════════════════════════
         if (interaction.isChatInputCommand()) {
             const command = interaction.client.commands.get(interaction.commandName);
             if (!command) return;
