@@ -1,6 +1,5 @@
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
-const { YoutubeiExtractor } = require('discord-player-youtubei');
 const { ProxyAgent } = require('undici');
 const db = require('../database/db');
 
@@ -42,14 +41,16 @@ async function initPlayer(client) {
     await _player.extractors.loadMulti(DefaultExtractors);
 
     // ── YouTube (discord-player v7 NO lo trae en DefaultExtractors) ───────
-    // El proxy de YouTube debe ser un ProxyAgent de undici (no un string).
+    // El extractor es opcional: si no está instalado (npm install), el bot
+    // sigue funcionando y solo avisa. El proxy de YouTube es un ProxyAgent.
     try {
+        const { YoutubeiExtractor } = require('discord-player-youtubei');
         const ytOpts = {};
         if (process.env.YOUTUBE_PROXY) ytOpts.proxy = new ProxyAgent(process.env.YOUTUBE_PROXY);
         _player.extractors.register(YoutubeiExtractor, ytOpts);
         console.log('[Music] ✅ Extractor de YouTube registrado' + (process.env.YOUTUBE_PROXY ? ' (con proxy)' : ''));
     } catch (e) {
-        console.warn('[Music] ⚠️ No se pudo registrar el extractor de YouTube:', e.message);
+        console.warn('[Music] ⚠️ Extractor de YouTube no disponible (faltó npm install):', e.message);
     }
 
     // ── Proxy para SoundCloud (acepta un string en options.proxy) ─────────
