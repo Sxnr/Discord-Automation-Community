@@ -59,17 +59,21 @@ module.exports = {
 
         const spotifyDetect = detectSpotify(query);
         if (spotifyDetect) {
-            if (spotifyDetect.type !== 'track') {
+            const hasSpotifyKeys = !!process.env.SPOTIFY_CLIENT_ID && !!process.env.SPOTIFY_CLIENT_SECRET;
+            if (spotifyDetect.type !== 'track' && !hasSpotifyKeys) {
                 return interaction.editReply({ embeds: [{
                     color: 0xFFA500,
                     title: '⚠️ Spotify sin API Key',
-                    description: 'Solo se soportan **canciones individuales** de Spotify sin API Key.'
+                    description: 'Solo se soportan **canciones individuales** de Spotify sin API Key. ' +
+                        'Agregá `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` para reproducir playlists y álbumes.'
                 }]});
             }
-            const info = await getSpotifyTrackInfo(query);
-            // Si el helper falla, no detenemos el proceso, buscamos la URL original
-            if (info) {
-                query = info.searchQuery;
+            if (spotifyDetect.type === 'track') {
+                const info = await getSpotifyTrackInfo(query);
+                // Si el helper falla, no detenemos el proceso, buscamos la URL original
+                if (info) { query = info.searchQuery; isSpotify = true; }
+            } else {
+                // playlist/álbum: el extractor de Spotify (con keys) lo resuelve solo.
                 isSpotify = true;
             }
         }
@@ -77,9 +81,13 @@ module.exports = {
         try {
             const result = await player.search(query, { requestedBy: interaction.user });
             if (!result.hasTracks()) {
+                const isYouTube = query.includes('youtu') || /^(https?:\/\/)?(www\.)?youtube\.com/.test(query);
+                const hint = process.env.YOUTUBE_PROXY
+                    ? ''
+                    : '\n💡 En hostings, YouTube suele **bloquear la IP**. Si es tu caso, configurá `YOUTUBE_PROXY` en .env.';
                 return interaction.editReply({ embeds: [{
                     color: 0xED4245,
-                    description: `❌ No se encontraron resultados para \`${query}\``,
+                    description: `❌ No se encontraron resultados para \`${query}\`.${isYouTube ? hint : ''}`
                 }]});
             }
 

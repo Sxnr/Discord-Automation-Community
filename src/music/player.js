@@ -14,6 +14,18 @@ try {
 
 let _player = null;
 
+// Votos de "vote-skip" por servidor: guildId -> Set<userId>
+const skipVotes = new Map();
+
+function registerSkipVote(guildId, userId, voiceMemberCount) {
+    const needed = Math.max(1, Math.ceil(voiceMemberCount / 2));
+    let set = skipVotes.get(guildId);
+    if (!set) { set = new Set(); skipVotes.set(guildId, set); }
+    set.add(userId);
+    return { votes: set.size, needed, reached: set.size >= needed };
+}
+function clearSkipVotes(guildId) { skipVotes.delete(guildId); }
+
 async function initPlayer(client) {
     if (_player) return _player;
 
@@ -26,11 +38,23 @@ async function initPlayer(client) {
     });
 
     await _player.extractors.loadMulti(DefaultExtractors);
-    
-    // Evento de Debug para monitorear la conexión de voz
-    _player.events.on('debug', (queue, message) => {
-        console.log(`[Player Debug]: ${message}`);
-    });
+
+    // ── Proxy para extractores (hostings que bloquean YouTube/SoundCloud) ──
+    configureExtractorProxies(_player);
+
+    // ── Spotify real (playlists/álbumes) si hay credenciales ──────────────
+    configureSpotify(_player);
+
+    // ── Diagnóstico de FFmpeg ──────────────────────────────────────────────
+    // Si FFmpeg no corre en el host, la música no emitirá audio (corte ~120ms).
+    logFFmpegStatus();
+
+    // Debug de voz solo si se habilita explícitamente (evita spam en logs).
+    if (process.env.MUSIC_DEBUG === 'true') {
+        _player.events.on('debug', (queue, message) => {
+            console.log(`[Player Debug]: ${message}`);
+        });
+    }
 
     // ── Evento: canción comienza ───────────────────────────────
     _player.events.on('playerStart', (queue, track) => {
@@ -75,12 +99,18 @@ async function initPlayer(client) {
 
     // ── Cola vacía ─────────────────────────────────────────────
     _player.events.on('emptyQueue', (queue) => {
+        clearSkipVotes(queue.guild.id);
         const cfg = db.prepare('SELECT music_text_channel FROM guild_settings WHERE guild_id = ?').get(queue.guild.id);
         const embed = { color: 0x5865F2, description: '✅ Cola finalizada. ¡Hasta la próxima!' };
         const ch = cfg?.music_text_channel
             ? queue.guild.channels.cache.get(cfg.music_text_channel)
             : queue.metadata?.channel;
         ch?.send({ embeds: [embed] }).catch(() => {});
+    });
+
+    // ── Al terminar/cambiar de canción: limpiar votos de skip ──
+    _player.events.on('playerFinish', (queue) => {
+        clearSkipVotes(queue.guild.id);
     });
 
     // ── Canal vacío ────────────────────────────────────────────
@@ -120,6 +150,53 @@ function detectSourceLabel(url = '') {
     return '🔍 Búsqueda';
 }
 
+// ── Configuración de hosting ───────────────────────────────────────────────
+function configureExtractorProxies(player) {
+    try {
+        const proxyMap = {
+            youtube: process.env.YOUTUBE_PROXY,
+            soundcloud: process.env.SOUNDCLOUD_PROXY,
+        };
+        for (const ext of player.extractors.store.values()) {
+            const id = (ext.identifier || '').toString().toLowerCase();
+            for (const [key, url] of Object.entries(proxyMap)) {
+                if (url && id.includes(key) && typeof ext.setProxy === 'function') {
+                    try { ext.setProxy(url); console.log(`[Music] Proxy aplicado al extractor: ${ext.identifier}`); }
+                    catch { /* extractor no soporta proxy */ }
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[Music] No se pudo configurar proxy en extractores:', e.message);
+    }
+}
+
+function configureSpotify(player) {
+    const id = process.env.SPOTIFY_CLIENT_ID, secret = process.env.SPOTIFY_CLIENT_SECRET;
+    if (!id || !secret) return;
+    try {
+        const ext = player.extractors.store.find(e => (e.identifier || '').toLowerCase().includes('spotify'));
+        if (ext && typeof ext.setToken === 'function') {
+            ext.setToken({ clientId: id, clientSecret: secret });
+            console.log('[Music] ✅ Spotify configurado con credenciales (playlists/álbumes completos).');
+        }
+    } catch (e) {
+        console.warn('[Music] No se pudo configurar Spotify:', e.message);
+    }
+}
+
+function logFFmpegStatus() {
+    const bin = process.env.FFMPEG_PATH || 'ffmpeg';
+    try {
+        const { execFileSync } = require('child_process');
+        const out = execFileSync(bin, ['-version'], { timeout: 5000 }).toString().split('\n')[0];
+        console.log(`[Music] ✅ FFmpeg disponible: ${out}`);
+    } catch (e) {
+        console.warn('[Music] ⚠️ FFmpeg NO disponible/ejecutable en este host:', e.message);
+        console.warn('[Music] ⚠️ La música no emitirá audio hasta que FFmpeg funcione (usá FFMPEG_PATH o instalá ffmpeg).');
+    }
+}
+
 function checkDJ(interaction) {
     const cfg = db.prepare('SELECT music_dj_role FROM guild_settings WHERE guild_id = ?').get(interaction.guild.id);
     if (!cfg?.music_dj_role) return true;
@@ -134,4 +211,4 @@ function sameChannel(interaction) {
     return botVC === userVC;
 }
 
-module.exports = { initPlayer, getPlayer, checkDJ, sameChannel, detectSourceLabel };
+module.exports = { initPlayer, getPlayer, checkDJ, sameChannel, detectSourceLabel, registerSkipVote, clearSkipVotes };

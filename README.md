@@ -64,6 +64,11 @@ GUILD_ID=                # ID de prueba para /deploy instantáneo (opcional)
 
 # Música (opcional, normalmente auto)
 FFMPEG_PATH=
+YOUTUBE_PROXY=          # Proxy HTTP/HTTPS si el hosting bloquea YouTube (IP datacenter)
+SOUNDCLOUD_PROXY=       # Proxy para SoundCloud si el hosting lo bloquea
+SPOTIFY_CLIENT_ID=      # Spotify real (playlists/álbumes). Sin esto: solo tracks individuales
+SPOTIFY_CLIENT_SECRET=
+MUSIC_DEBUG=            # pon "true" solo para depurar la conexión de voz (muy verboso)
 
 # Moderación por IA (opcional; sin key usa heurística de respaldo)
 AI_API_KEY=sk-...        # Cualquier key compatible con OpenAI (o tu proveedor)
@@ -116,8 +121,8 @@ Balance, daily, trabajo, crimen, robo, tienda, inventario, logros, mascotas y pe
 ### 🎮 Diversión (`/trivia`, `/hangman`, `/tictactoe`, `/slots`, `/dice`, `/rps`, `/8ball`, `/ship`, `/race`, `/meme`, `/animales`, `/avatar`, `/action`, `/calculadora`, `/acortar`, `/definicion`, `/coinflip`, `/blackjack`)
 Juegos y entretenimiento, incluidas **apuestas** con la economía del servidor.
 
-### 🎵 Música (`/play`, `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/loop`, `/shuffle`, `/nowplaying`, `/playlist`, `/musicconfig`, `/lyrics`)
-Reproduce y gestiona música en canales de voz. `nowplaying` y `play` incluyen **botones de control** (pausar/reanudar/saltar/detener). `/lyrics` busca la letra de la canción actual o una específica en Genius.
+### 🎵 Música (`/play`, `/queue`, `/skip`, `/pause`, `/resume`, `/stop`, `/volume`, `/loop`, `/shuffle`, `/nowplaying`, `/playlist`, `/musicconfig`, `/lyrics`, `/filters`, `/seek`, `/voteskip`)
+Reproduce y gestiona música en canales de voz. `nowplaying` y `play` incluyen **botones de control** (pausar/reanudar/saltar/votar-skip/detener). Incluye **autoplay/radio** (`/loop autoplay`), **filtros de audio** (`/filters`: bass boost, nightcore, 8D, vaporwave), **seek** (`/seek`), **vote-skip** por mayoría y **peticiones por chat** escribiendo el nombre/URL en el canal de música configurado. `/lyrics` busca la letra en Genius.
 
 ### 🛠️ Utilidad (`/help`, `/status`, `/serverinfo`, `/userinfo`, `/leaderboard`, `/rank`, `/birthday`, `/clima`, `/noticias`, `/peliculas`, `/series`, `/letra`, `/suggest`, `/report`, `/poll`, `/event`, `/giveaway`, `/reminder`, `/vote`, `/stats`)
 Información, utilidades comunitarias, APIs externas, **votaciones con recompensa** y **estadísticas de uso**.
