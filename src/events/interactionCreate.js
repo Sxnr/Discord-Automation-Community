@@ -72,8 +72,22 @@ module.exports = {
         }
 
         // ════════════════════════════════════════
+        // 1b. AUTOCOMPLETADO (no es comando ni componente)
+        // ════════════════════════════════════════
+        if (interaction.isAutocomplete()) {
+            const command = interaction.client.commands.get(interaction.commandName);
+            if (command && typeof command.autocomplete === 'function') {
+                try { await command.autocomplete(interaction); }
+                catch (e) { console.error('❌ Autocomplete:', e?.code || '', e?.message || e); }
+            }
+            return;
+        }
+
+        // ════════════════════════════════════════
         // 2. COMPONENTES (botones, menús, modales)
         // ════════════════════════════════════════
+        // Solo los componentes de mensaje y modales tienen customId.
+        if (!interaction.isMessageComponent() && !interaction.isModalSubmit()) return;
         try {
             for (const handler of componentHandlers) {
                 if (await handler(interaction)) return;

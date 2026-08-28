@@ -4,6 +4,7 @@ const { checkAndUnlock } = require('../commands/economy/achievements');
 
 module.exports = async function (interaction) {
     const { customId } = interaction;
+    if (!customId) return false;
 
     // ── AHORCADO ──
     if (customId.startsWith('hm_letter_')) {
