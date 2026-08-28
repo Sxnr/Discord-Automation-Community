@@ -94,4 +94,9 @@ if (fs.existsSync(eventsPath)) {
 // Chequeo de keys/APIs al arranque (no bloquea si faltan opcionales)
 checkEnv();
 
+// Verifica/instala dependencias opcionales (p.ej. discord-player-youtubei) en
+// cada arranque, para no depender de un "npm install" manual en el hosting.
+const { ensureDependencies } = require('./utils/ensureDeps');
+ensureDependencies();
+
 client.login(config.token);
