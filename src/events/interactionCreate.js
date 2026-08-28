@@ -93,6 +93,9 @@ module.exports = {
                 if (await handler(interaction)) return;
             }
         } catch (error) {
+            // 10062 (interacción ya no existe) / 40060 (ya fue respondida) => casi siempre
+            // es otra instancia del bot atendiendo la misma interacción. No es un error real.
+            if (error?.code === 10062 || error?.code === 40060) return;
             console.error('❌ Error en interacción:', error);
             const errorFeedback = { content: '❌ Error técnico. Contacta al staff.', flags: [MessageFlags.Ephemeral] };
             try {

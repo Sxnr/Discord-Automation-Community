@@ -54,14 +54,20 @@ module.exports = async function (interaction) {
         .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
         .setTimestamp();
 
-    await interaction.update({
-        embeds: [helpEmbed],
-        components: [new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId('help_menu')
-                .setPlaceholder('📂 Selecciona una categoría...')
-                .addOptions(menuOptions)
-        )],
-    });
+    try {
+        await interaction.update({
+            embeds: [helpEmbed],
+            components: [new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('help_menu')
+                    .setPlaceholder('📂 Selecciona una categoría...')
+                    .addOptions(menuOptions)
+            )],
+        });
+    } catch (e) {
+        // Otra instancia ya respondió (10062/40060) o la interacción expiró: ignorar.
+        if (e?.code === 10062 || e?.code === 40060) return true;
+        throw e;
+    }
     return true;
 };
