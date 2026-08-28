@@ -1,5 +1,7 @@
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
+const { YoutubeiExtractor } = require('discord-player-youtubei');
+const { ProxyAgent } = require('undici');
 const db = require('../database/db');
 
 // Usar el binario de FFmpeg empaquetado (ffmpeg-static) para que la música
@@ -39,7 +41,18 @@ async function initPlayer(client) {
 
     await _player.extractors.loadMulti(DefaultExtractors);
 
-    // ── Proxy para extractores (hostings que bloquean YouTube/SoundCloud) ──
+    // ── YouTube (discord-player v7 NO lo trae en DefaultExtractors) ───────
+    // El proxy de YouTube debe ser un ProxyAgent de undici (no un string).
+    try {
+        const ytOpts = {};
+        if (process.env.YOUTUBE_PROXY) ytOpts.proxy = new ProxyAgent(process.env.YOUTUBE_PROXY);
+        _player.extractors.register(YoutubeiExtractor, ytOpts);
+        console.log('[Music] ✅ Extractor de YouTube registrado' + (process.env.YOUTUBE_PROXY ? ' (con proxy)' : ''));
+    } catch (e) {
+        console.warn('[Music] ⚠️ No se pudo registrar el extractor de YouTube:', e.message);
+    }
+
+    // ── Proxy para SoundCloud (acepta un string en options.proxy) ─────────
     configureExtractorProxies(_player);
 
     // ── Spotify real (playlists/álbumes) si hay credenciales ──────────────
@@ -152,18 +165,17 @@ function detectSourceLabel(url = '') {
 
 // ── Configuración de hosting ───────────────────────────────────────────────
 function configureExtractorProxies(player) {
+    // SoundCloud lee el proxy desde options.proxy (string). YouTube se configura
+    // en el registro (ProxyAgent), así que aquí solo tocamos SoundCloud.
     try {
-        const proxyMap = {
-            youtube: process.env.YOUTUBE_PROXY,
-            soundcloud: process.env.SOUNDCLOUD_PROXY,
-        };
+        const proxy = process.env.SOUNDCLOUD_PROXY;
+        if (!proxy) return;
         for (const ext of player.extractors.store.values()) {
             const id = (ext.identifier || '').toString().toLowerCase();
-            for (const [key, url] of Object.entries(proxyMap)) {
-                if (url && id.includes(key) && typeof ext.setProxy === 'function') {
-                    try { ext.setProxy(url); console.log(`[Music] Proxy aplicado al extractor: ${ext.identifier}`); }
-                    catch { /* extractor no soporta proxy */ }
-                }
+            if (id.includes('soundcloud')) {
+                if (!ext.options) ext.options = {};
+                ext.options.proxy = proxy;
+                console.log(`[Music] ✅ Proxy SoundCloud aplicado: ${ext.identifier}`);
             }
         }
     } catch (e) {
