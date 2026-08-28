@@ -21,22 +21,26 @@ module.exports = async (interaction) => {
         return true;
     }
 
+    // Responde de forma segura: si la interacción ya fue gestionada por otra
+    // instancia (ejecución duplicada), el reply falla y lo ignoramos.
+    const ack = (content) => interaction.reply({ content, flags: [MessageFlags.Ephemeral] }).catch(() => {});
+
     try {
         if (interaction.customId === 'music_pause') {
             queue.node.pause();
-            await interaction.reply({ content: '⏸️ Música pausada.', flags: [MessageFlags.Ephemeral] });
+            await ack('⏸️ Música pausada.');
         } else if (interaction.customId === 'music_resume') {
             queue.node.resume();
-            await interaction.reply({ content: '▶️ Música reanudada.', flags: [MessageFlags.Ephemeral] });
+            await ack('▶️ Música reanudada.');
         } else if (interaction.customId === 'music_skip') {
             await queue.node.skip();
-            await interaction.reply({ content: '⏭️ Saltando a la siguiente canción...', flags: [MessageFlags.Ephemeral] });
+            await ack('⏭️ Saltando a la siguiente canción...');
         } else if (interaction.customId === 'music_stop') {
             await queue.node.stop();
-            await interaction.reply({ content: '⏹️ Música detenida.', flags: [MessageFlags.Ephemeral] });
+            await ack('⏹️ Música detenida.');
         }
     } catch (e) {
-        await interaction.reply({ content: `❌ ${e.message}`, flags: [MessageFlags.Ephemeral] });
+        await ack(`❌ ${e.message}`);
     }
     return true;
 };
