@@ -4,7 +4,7 @@ const path = require('path');
 // Dependencias opcionales que el bot necesita pero que el hosting a veces no
 // instala al hacer solo "git pull". Se verifican en cada arranque y se instalan
 // si faltan, para no depender de un "npm install" manual en el hosting.
-const OPTIONAL_DEPS = ['discord-player-youtubei'];
+const OPTIONAL_DEPS = ['discord-player-youtubei', 'youtube-dl-exec'];
 
 // Raíz del proyecto (este archivo está en src/utils -> subimos dos niveles).
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
