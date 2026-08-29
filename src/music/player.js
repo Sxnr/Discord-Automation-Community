@@ -4,23 +4,26 @@ const { ProxyAgent } = require('undici');
 const db = require('../database/db');
 
 // ── Shim para 'youtube-dl-exec' ───────────────────────────────────────────
-// discord-player-youtubei lo requiere al cargar, pero en hostings compartidos
-// su instalación (descarga de binario en preinstall) suele fallar, y el hosting
-// no siempre reinstala dependencias al hacer pull+restart. La ruta principal de
-// YouTube usa Innertube y NO necesita ytdl; satisfacemos el require con un shim
-// que solo lanza si se usa explícitamente (useYoutubeDL), lo cual no hacemos.
+// discord-player-youtubei lo requiere al cargar (lee .constants y .exec), pero
+// en hostings compartidos su instalación (descarga de binario en preinstall)
+// suele fallar y el hosting no reinstala deps al hacer pull+restart. La ruta
+// principal de YouTube usa Innertube y NO necesita ytdl; por eso basta con un
+// shim con la forma mínima para que el módulo cargue. El exec solo se usa si se
+// habilita useYoutubeDL (no lo hacemos), así que rechaza si alguna vez se llama.
 const Module = require('module');
 const _originalLoad = Module._load;
+const youtubeDlExecShim = {
+    exec: () => Promise.reject(new Error('youtube-dl-exec no disponible en este hosting')),
+    constants: {
+        YOUTUBE_DL_PATH: '',
+        YOUTUBE_DL_HOST: '',
+        YOUTUBE_DL_DIR: '',
+        YOUTUBE_DL_FILE: '',
+    },
+};
+youtubeDlExecShim.default = youtubeDlExecShim;
 Module._load = function (request, parent, isMain) {
-    if (request === 'youtube-dl-exec') {
-        return new Proxy(function () {}, {
-            get: (_t, prop) => {
-                if (prop === 'then') return undefined;
-                return () => Promise.reject(new Error('youtube-dl-exec no disponible en este hosting'));
-            },
-            apply: () => Promise.reject(new Error('youtube-dl-exec no disponible en este hosting')),
-        });
-    }
+    if (request === 'youtube-dl-exec') return youtubeDlExecShim;
     return _originalLoad.apply(this, arguments);
 };
 
