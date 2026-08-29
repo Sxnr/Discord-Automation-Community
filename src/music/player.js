@@ -69,10 +69,14 @@ async function initPlayer(client) {
     // sigue funcionando y solo avisa. El proxy de YouTube es un ProxyAgent.
     try {
         const { YoutubeiExtractor } = require('discord-player-youtubei');
-        const ytOpts = {};
+        // El cliente "web" de YouTube exige descifrar la firma y suele fallar
+        // ("Failed to extract signature decipher"). Forzamos un cliente que da
+        // URL de stream directa sin decipher (tv/webCreator) para que reproduzca.
+        const ytClient = process.env.YOUTUBE_CLIENT || 'tv';
+        const ytOpts = { streamOptions: { useClient: ytClient } };
         if (process.env.YOUTUBE_PROXY) ytOpts.proxy = new ProxyAgent(process.env.YOUTUBE_PROXY);
         _player.extractors.register(YoutubeiExtractor, ytOpts);
-        console.log('[Music] ✅ Extractor de YouTube registrado' + (process.env.YOUTUBE_PROXY ? ' (con proxy)' : ''));
+        console.log('[Music] ✅ Extractor de YouTube registrado' + (process.env.YOUTUBE_PROXY ? ' (con proxy)' : '') + ` [cliente=${ytClient}]`);
     } catch (e) {
         console.warn('[Music] ⚠️ Extractor de YouTube no disponible (faltó npm install):', e.message);
     }
