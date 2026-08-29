@@ -3,6 +3,27 @@ const { DefaultExtractors } = require('@discord-player/extractor');
 const { ProxyAgent } = require('undici');
 const db = require('../database/db');
 
+// ── Shim para 'youtube-dl-exec' ───────────────────────────────────────────
+// discord-player-youtubei lo requiere al cargar, pero en hostings compartidos
+// su instalación (descarga de binario en preinstall) suele fallar, y el hosting
+// no siempre reinstala dependencias al hacer pull+restart. La ruta principal de
+// YouTube usa Innertube y NO necesita ytdl; satisfacemos el require con un shim
+// que solo lanza si se usa explícitamente (useYoutubeDL), lo cual no hacemos.
+const Module = require('module');
+const _originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+    if (request === 'youtube-dl-exec') {
+        return new Proxy(function () {}, {
+            get: (_t, prop) => {
+                if (prop === 'then') return undefined;
+                return () => Promise.reject(new Error('youtube-dl-exec no disponible en este hosting'));
+            },
+            apply: () => Promise.reject(new Error('youtube-dl-exec no disponible en este hosting')),
+        });
+    }
+    return _originalLoad.apply(this, arguments);
+};
+
 // Usar el binario de FFmpeg empaquetado (ffmpeg-static) para que la música
 // funcione sin instalar FFmpeg en el sistema (Windows, Linux, macOS).
 // @discordjs/voice lee la variable de entorno FFMPEG_PATH automáticamente.
