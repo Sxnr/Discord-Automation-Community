@@ -100,3 +100,60 @@ const { ensureDependencies } = require('./utils/ensureDeps');
 ensureDependencies();
 
 client.login(config.token);
+
+// ── Graceful Shutdown ─────────────────────────────────────────────────────
+// Maneja SIGTERM/SIGINT para cerrar conexiones de voz, DB y WebSocket
+// limpiamente en vez de cortar el proceso de golpe.
+const { getPlayer } = require('./music/player');
+const db = require('./database/db');
+
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+
+    console.log(`\n[SHUTDOWN] ${signal} recibido. Cerrando limpiamente...`);
+
+    try {
+        // 1. Desconectar todas las conexiones de voz del player
+        const player = getPlayer();
+        if (player) {
+            const queues = player.nodes.cache;
+            for (const [guildId, queue] of queues) {
+                try {
+                    queue.connection?.disconnect();
+                    queue.destroy();
+                } catch { /* noop */ }
+            }
+            console.log('[SHUTDOWN] ✅ Conexiones de voz cerradas');
+        }
+    } catch (e) {
+        console.error('[SHUTDOWN] Error cerrando player:', e.message);
+    }
+
+    try {
+        // 2. Cerrar la conexión de la base de datos
+        if (db && typeof db.close === 'function') {
+            db.close();
+            console.log('[SHUTDOWN] ✅ Base de datos cerrada');
+        }
+    } catch (e) {
+        console.error('[SHUTDOWN] Error cerrando DB:', e.message);
+    }
+
+    try {
+        // 3. Destruir el cliente de Discord (cierra el WebSocket)
+        client.destroy();
+        console.log('[SHUTDOWN] ✅ Cliente Discord destruido');
+    } catch (e) {
+        console.error('[SHUTDOWN] Error destruyendo cliente:', e.message);
+    }
+
+    console.log('[SHUTDOWN] Proceso terminado limpiamente.');
+    process.exit(0);
+}
+
+// Timeout de seguridad: si el shutdown no termina en 10s, forzar salida
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

@@ -2,8 +2,26 @@ const { Events, EmbedBuilder, PermissionsBitField } = require('discord.js');
 const db = require('../database/db');
 
 // Mapa en memoria: rastrear mensajes por usuario para anti-spam
-// Estructura: Map<guildId_userId, { count, timer }>
+// Estructura: Map<guildId_userId, { messages: number[], lastCleanup: number }>
 const spamTracker = new Map();
+
+// TTL para limpiar entradas inactivas (5 min)
+const TRACKER_TTL = 5 * 60 * 1000;
+const CLEANUP_INTERVAL = 60 * 1000;
+let lastGlobalCleanup = Date.now();
+
+function cleanupSpamTracker() {
+    const now = Date.now();
+    if (now - lastGlobalCleanup < CLEANUP_INTERVAL) return;
+    lastGlobalCleanup = now;
+    for (const [key, data] of spamTracker) {
+        // Si el último mensaje fue hace más de TTL, eliminar la entrada
+        const lastMsg = data.messages[data.messages.length - 1] || 0;
+        if (now - lastMsg > TRACKER_TTL) {
+            spamTracker.delete(key);
+        }
+    }
+}
 
 // Helper: enviar log al canal de automod
 async function sendAutomodLog(guild, logChannelId, embed) {
@@ -40,6 +58,9 @@ module.exports = {
     async execute(message) {
         // Ignorar bots, DMs y mensajes sin guild
         if (!message.guild || message.author.bot) return;
+
+        // Limpiar entradas inactivas del tracker periódicamente
+        cleanupSpamTracker();
 
         const guildId = message.guild.id;
         const config  = db.prepare('SELECT * FROM guild_settings WHERE guild_id = ?').get(guildId);

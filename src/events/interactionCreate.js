@@ -14,6 +14,36 @@ function markSeen(id) {
     setTimeout(() => recentInteractions.delete(id), 15000).unref?.();
 }
 
+// ── Buffer de analytics: batch INSERT cada 30s ────────────────────────────
+// En vez de hacer un INSERT por cada comando, acumulamos en un buffer
+// y flushamos periódicamente. Reduce I/O de disco significativamente.
+const analyticsBuffer = [];
+const ANALYTICS_FLUSH_INTERVAL = 30_000; // 30 segundos
+const insertStat = db.prepare('INSERT INTO command_stats (guild_id, command, user_id, used_at) VALUES (?, ?, ?, ?)');
+
+function flushAnalytics() {
+    if (analyticsBuffer.length === 0) return;
+    const batch = analyticsBuffer.splice(0, analyticsBuffer.length);
+    try {
+        const insertMany = db.transaction((entries) => {
+            for (const entry of entries) {
+                insertStat.run(entry.guildId, entry.command, entry.userId, entry.usedAt);
+            }
+        });
+        insertMany(batch);
+    } catch {
+        // Si falla el batch, no es crítico — los analytics son best-effort
+    }
+}
+
+// Flush periódico (unref para no bloquear el cierre del proceso)
+const flushTimer = setInterval(flushAnalytics, ANALYTICS_FLUSH_INTERVAL);
+flushTimer.unref?.();
+
+// Flush al cerrar el proceso
+process.on('SIGTERM', flushAnalytics);
+process.on('SIGINT', flushAnalytics);
+
 // ── Manejadores de componentes (botones, menús, modales) ──
 // Cada módulo exporta una función async que devuelve `true` si manejó la interacción.
 const componentHandlers = [
@@ -50,10 +80,13 @@ module.exports = {
             const command = interaction.client.commands.get(interaction.commandName);
             if (!command) return;
 
-            try {
-                db.prepare('INSERT INTO command_stats (guild_id, command, user_id, used_at) VALUES (?, ?, ?, ?)')
-                    .run(interaction.guildId, interaction.commandName, interaction.user.id, Date.now());
-            } catch { /* no crítico */ }
+            // Buffer analytics en vez de INSERT directo
+            analyticsBuffer.push({
+                guildId: interaction.guildId,
+                command: interaction.commandName,
+                userId: interaction.user.id,
+                usedAt: Date.now(),
+            });
 
             try {
                 await command.execute(interaction);

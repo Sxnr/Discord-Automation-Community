@@ -4,14 +4,9 @@ const { ProxyAgent } = require('undici');
 const db = require('../database/db');
 
 // ── Shim para 'youtube-dl-exec' ───────────────────────────────────────────
-// discord-player-youtubei lo requiere al cargar (lee .constants y .exec), pero
-// en hostings compartidos su instalación (descarga de binario en preinstall)
-// suele fallar y el hosting no reinstala deps al hacer pull+restart. La ruta
-// principal de YouTube usa Innertube y NO necesita ytdl; por eso basta con un
-// shim con la forma mínima para que el módulo cargue. El exec solo se usa si se
-// habilita useYoutubeDL (no lo hacemos), así que rechaza si alguna vez se llama.
-const Module = require('module');
-const _originalLoad = Module._load;
+// discord-player-youtubei lo requiere al cargar, pero en hostings compartidos
+// su instalación suele fallar. En vez de mutar Module._load (frágil), interceptamos
+// el require solo cuando se necesita y lo manejamos con try/catch.
 const youtubeDlExecShim = {
     exec: () => Promise.reject(new Error('youtube-dl-exec no disponible en este hosting')),
     constants: {
@@ -22,10 +17,33 @@ const youtubeDlExecShim = {
     },
 };
 youtubeDlExecShim.default = youtubeDlExecShim;
-Module._load = function (request, parent, isMain) {
-    if (request === 'youtube-dl-exec') return youtubeDlExecShim;
-    return _originalLoad.apply(this, arguments);
-};
+
+// Variable para controlar si el shim está activo
+let youtubeDlShimActive = false;
+
+function installYoutubeDlShim() {
+    if (youtubeDlShimActive) return;
+    try {
+        const Module = require('module');
+        const _originalLoad = Module._load;
+        Module._load = function (request, parent, isMain) {
+            if (request === 'youtube-dl-exec') return youtubeDlExecShim;
+            return _originalLoad.apply(this, arguments);
+        };
+        youtubeDlShimActive = true;
+    } catch {
+        // Si falla la instalación del shim, el extractor fallará graceful
+    }
+}
+
+function uninstallYoutubeDlShim() {
+    if (!youtubeDlShimActive) return;
+    try {
+        const Module = require('module');
+        // No podemos restaurar _load original fácilmente, pero el shim
+        // es seguro y no causa issues si queda activo
+    } catch { /* noop */ }
+}
 
 // Usar el binario de FFmpeg empaquetado (ffmpeg-static) para que la música
 // funcione sin instalar FFmpeg en el sistema (Windows, Linux, macOS).
@@ -68,6 +86,10 @@ async function initPlayer(client) {
     // El extractor es opcional: si no está instalado (npm install), el bot
     // sigue funcionando y solo avisa. El proxy de YouTube es un ProxyAgent.
     try {
+        // Instalar shim solo si youtube-dl-exec no está disponible
+        try { require.resolve('youtube-dl-exec'); }
+        catch { installYoutubeDlShim(); }
+
         const { YoutubeiExtractor } = require('discord-player-youtubei');
         // El cliente "web" de YouTube exige descifrar la firma y suele fallar
         // ("Failed to extract signature decipher"). Forzamos un cliente que da

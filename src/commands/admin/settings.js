@@ -120,8 +120,31 @@ module.exports = {
         // ── ACTUALIZACIÓN ─────────────────────────────────────────────────
         db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)').run(guildId);
 
+        // Whitelist de columnas permitidas (previene SQL injection)
+        const ALLOWED_COLUMNS = new Set([
+            'welcome_channel', 'welcome_role', 'welcome_color', 'welcome_enabled',
+            'welcome_message', 'welcome_background',
+            'ticket_log_channel', 'ticket_embed_msg', 'ticket_embed_image',
+            'ticket_welcome_msg', 'ticket_category', 'ticket_types', 'ticket_dm_preference',
+            'audit_log_channel', 'general_log_channel',
+            'report_channel', 'suggest_channel', 'suggest_log_channel',
+            'staff_role', 'automod_enabled', 'automod_log_channel',
+            'xp_enabled', 'xp_channel', 'xp_min', 'xp_max', 'xp_cooldown', 'xp_multiplier',
+            'economy_enabled', 'economy_currency', 'economy_currency_emoji',
+            'poll_channel', 'events_channel', 'events_log_channel',
+            'verify_enabled', 'verify_role', 'verify_channel', 'verify_log_channel',
+            'starboard_enabled', 'starboard_channel', 'starboard_threshold',
+            'music_volume', 'music_dj_role', 'music_text_channel', 'music_max_queue',
+            'music_247', 'music_autoplay', 'music_filters_enabled', 'music_announce',
+            'music_leave_timeout', 'language',
+        ]);
+
         const changes = [];
         const set = (col, val, label) => {
+            if (!ALLOWED_COLUMNS.has(col)) {
+                console.error(`[Settings] Columna no permitida: ${col}`);
+                return;
+            }
             db.prepare(`UPDATE guild_settings SET ${col} = ? WHERE guild_id = ?`).run(val, guildId);
             changes.push(label);
         };

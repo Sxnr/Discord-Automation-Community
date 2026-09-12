@@ -1,12 +1,70 @@
-const Database = require('better-sqlite3');
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATABASE ADAPTER LAYER
+//  Detecta el motor configurado y expone una interfaz unificada.
+//  - SQLite (default): sync, sin dependencias externas
+//  - PostgreSQL: async, requiere DATABASE_URL
+// ═══════════════════════════════════════════════════════════════════════════
+
+require('dotenv').config();
 const path = require('node:path');
+const { transformQuery } = require('./transformer');
 
+const DATABASE_URL = process.env.DATABASE_URL;
+let adapter;
 
-const db = new Database(path.join(__dirname, 'database.sqlite'));
+if (DATABASE_URL && DATABASE_URL.startsWith('postgres')) {
+    // ── PostgreSQL ─────────────────────────────────────────────────────────
+    const PostgresAdapter = require('./adapters/postgres');
+    adapter = new PostgresAdapter(DATABASE_URL);
+    console.log('[DB] 🐘 Conectado a PostgreSQL');
+} else {
+    // ── SQLite (default) ──────────────────────────────────────────────────
+    const SqliteAdapter = require('./adapters/sqlite');
+    const dbPath = process.env.SQLITE_PATH || path.join(__dirname, 'database.sqlite');
+    adapter = new SqliteAdapter(dbPath);
+    console.log('[DB] 🗄️ Conectado a SQLite:', dbPath);
+}
 
+// ══════════════════════════════════════════════════════════════════════════════
+// WRAPPER: Interfaz unificada con transformación de queries
+// ══════════════════════════════════════════════════════════════════════════════
+const db = {
+    engine: adapter.engine,
 
-// Habilitar el modo WAL para mejor rendimiento en escrituras simultáneas
-db.pragma('journal_mode = WAL');
+    prepare(sql) {
+        const transformed = transformQuery(sql, adapter.engine);
+        const stmt = adapter.prepare(transformed);
+        return {
+            run(...args)  { return stmt.run(...args); },
+            get(...args)  { return stmt.get(...args); },
+            all(...args)  { return stmt.all(...args); },
+        };
+    },
+
+    transaction(fn) {
+        return adapter.transaction(fn);
+    },
+
+    pragma(sql) {
+        if (adapter.pragma) return adapter.pragma(sql);
+    },
+
+    exec(sql) {
+        return adapter.exec(sql);
+    },
+
+    close() {
+        return adapter.close();
+    },
+
+    tableInfo(tableName) {
+        return adapter.tableInfo(tableName);
+    },
+
+    tableExists(tableName) {
+        return adapter.tableExists(tableName);
+    },
+};
 
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -482,9 +540,18 @@ db.prepare(`
 // MIGRACIONES DINÁMICAS (Para actualizaciones futuras sin borrar la DB)
 // ══════════════════════════════════════════════════════════════════════════════
 function migrateTable(tableName, columns) {
-    const info = db.prepare(`PRAGMA table_info(${tableName})`).all().map(c => c.name);
+    // En PostgreSQL, usar information_schema en vez de PRAGMA
+    let existingCols;
+    if (db.engine === 'postgresql') {
+        const rows = db.tableInfo(tableName);
+        existingCols = rows.map(c => c.name);
+    } else {
+        const rows = db.prepare(`PRAGMA table_info(${tableName})`).all();
+        existingCols = rows.map(c => c.name);
+    }
+
     for (const [col, type] of Object.entries(columns)) {
-        if (!info.includes(col)) {
+        if (!existingCols.includes(col)) {
             try {
                 db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${col} ${type}`).run();
                 console.log(`[DB] Migración: Columna '${col}' añadida a '${tableName}'`);
@@ -521,7 +588,6 @@ migrateTable('guild_settings', {
     economy_enabled: 'INTEGER DEFAULT 1',
     starboard_emoji: "TEXT DEFAULT '⭐'",
 
-    // ── Música (migración segura para DBs ya existentes) ────
     music_volume:          'INTEGER DEFAULT 100',
     music_dj_role:         'TEXT',
     music_text_channel:    'TEXT',
@@ -532,15 +598,12 @@ migrateTable('guild_settings', {
     music_announce:        'INTEGER DEFAULT 1',
     music_leave_timeout:   'INTEGER DEFAULT 300000',
     language:               "TEXT DEFAULT 'es'"
-    // ────────────────────────────────────────────────────────
-    // Añade aquí cualquier columna nueva que inventes en el futuro
 });
 
 
-// ══════════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 15b. TRANSACCIONES ECONÓMICAS
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS transactions (
         id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -553,9 +616,9 @@ db.prepare(`
     )
 `).run();
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 16. MASCOTAS (PETS)
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS pets (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -580,9 +643,9 @@ db.prepare(`
     )
 `).run();
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 17. ESTADÍSTICAS DE TRIVIA
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS trivia_stats (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -596,9 +659,9 @@ db.prepare(`
     )
 `).run();
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 18. VERIFICACIÓN DE USUARIOS
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS verifications (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -614,9 +677,9 @@ db.prepare(`
     )
 `).run();
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 19. PANELES DE ROLES POR REACCIÓN
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS reaction_role_panels (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -633,9 +696,9 @@ db.prepare(`
 `).run();
 
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 20. PREGUNTAS DE TRIVIA (PERSONALIZADAS)
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS trivia_questions (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -650,9 +713,9 @@ db.prepare(`
 `).run();
 
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 21. VOTOS (Top.gg / Disboard) Y RECOMPENSAS
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS votes (
         user_id     TEXT PRIMARY KEY,
@@ -664,9 +727,9 @@ db.prepare(`
 `).run();
 
 
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // 22. ESTADÍSTICAS DE USO DE COMANDOS (Analytics)
-// ════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 db.prepare(`
     CREATE TABLE IF NOT EXISTS command_stats (
         guild_id TEXT,
@@ -679,19 +742,27 @@ db.prepare(`CREATE INDEX IF NOT EXISTS idx_cmdstats_guild ON command_stats(guild
 
 
 // ── Migraciones de tablas renombradas (compatibilidad con el código) ──
-function tableExists(name) {
+function tableExistsLocal(name) {
+    if (db.engine === 'postgresql') {
+        return db.tableExists(name);
+    }
     return !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);
 }
 
 // shop -> shop_items (esquema correcto, preservando datos)
-if (tableExists('shop_items')) {
-    const shopCols = db.prepare('PRAGMA table_info(shop_items)').all().map(c => c.name);
+if (tableExistsLocal('shop_items')) {
+    let shopCols;
+    if (db.engine === 'postgresql') {
+        shopCols = db.tableInfo('shop_items').map(c => c.name);
+    } else {
+        shopCols = db.prepare('PRAGMA table_info(shop_items)').all().map(c => c.name);
+    }
     if (shopCols.includes('created_at')) {
         db.prepare('ALTER TABLE shop_items RENAME TO shop_items_old').run();
         console.log('[DB] Migración: shop_items con esquema obsoleto respaldada');
     }
 }
-if (!tableExists('shop_items')) {
+if (!tableExistsLocal('shop_items')) {
     db.prepare(`
         CREATE TABLE shop_items (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -709,7 +780,7 @@ if (!tableExists('shop_items')) {
         )
     `).run();
 }
-if (tableExists('shop')) {
+if (tableExistsLocal('shop')) {
     db.prepare(`
         INSERT OR IGNORE INTO shop_items (guild_id, name, description, price, emoji, role_id, stock)
         SELECT guild_id, name, description, price, emoji, role_id, stock FROM shop
@@ -724,8 +795,13 @@ migrateTable('shop_items', {
 });
 
 // inventory: columna 'item' -> 'item_id'
-if (tableExists('inventory')) {
-    const invCols = db.prepare('PRAGMA table_info(inventory)').all().map(c => c.name);
+if (tableExistsLocal('inventory')) {
+    let invCols;
+    if (db.engine === 'postgresql') {
+        invCols = db.tableInfo('inventory').map(c => c.name);
+    } else {
+        invCols = db.prepare('PRAGMA table_info(inventory)').all().map(c => c.name);
+    }
     if (!invCols.includes('item_id')) {
         db.prepare('ALTER TABLE inventory RENAME TO inventory_old').run();
         db.prepare(`
