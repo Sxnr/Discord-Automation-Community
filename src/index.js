@@ -155,13 +155,13 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
     try {
         await db.ready;
         console.log('[DB] ✅ Base de datos lista');
-
-        const { seedGlobalAchievements } = require('./commands/economy/achievements');
-        seedGlobalAchievements();
     } catch (err) {
         console.error('[DB] ❌ Error inicializando base de datos:', err.message);
         process.exit(1);
     }
 
-    client.login(config.token);
+    console.log('[Discord] Iniciando login...');
+    client.login(config.token).catch(err => {
+        console.error('[Discord] ❌ Error en login:', err.message);
+    });
 })();

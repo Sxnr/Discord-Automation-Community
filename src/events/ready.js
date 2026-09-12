@@ -10,9 +10,21 @@ module.exports = {
         const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
         const totalGuilds = client.guilds.cache.size;
 
-        // --- MÚSICA ---
-        await initPlayer(client);
-        console.log('[Music] ✅ Player listo');
+        // --- MÚSICA (con timeout para que no bloquee el arranque) ---
+        try {
+            await Promise.race([
+                initPlayer(client),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+            ]);
+            console.log('[Music] ✅ Player listo');
+        } catch (e) {
+            console.warn('[Music] ⚠️ Player no se inicializó:', e.message);
+        }
+
+        // --- GESTOR DE SORTEOS ---
+        checkGiveaways(client).catch(() => {});
+        setInterval(() => checkGiveaways(client).catch(() => {}), 10000);
+        setInterval(() => updateParticipantCounts(client).catch(() => {}), 60000);
 
         console.log(`\n=================================================`);
         console.log(`🚀 SISTEMA GLOBAL ONLINE`);
@@ -21,14 +33,8 @@ module.exports = {
         console.log(`🛡️ Servidores: ${totalGuilds.toLocaleString()}`);
         console.log(`👥 Usuarios Totales: ${totalUsers.toLocaleString()}`);
         console.log(`📡 Latencia API: ${client.ws.ping}ms`);
-        console.log(`🗄️ Base de Datos: Sincronizada (SQLite3)`);
+        console.log(`🗄️ Base de Datos: PostgreSQL`);
         console.log(`=================================================\n`);
-
-
-        // --- GESTOR DE SORTEOS ---
-        checkGiveaways(client).catch(() => {});
-        setInterval(() => checkGiveaways(client).catch(() => {}), 10000);
-        setInterval(() => updateParticipantCounts(client).catch(() => {}), 60000);
 
 
         // --- STATUS ROTATIVO CON DATOS EN VIVO ---

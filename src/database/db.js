@@ -40,6 +40,17 @@ if (!deasync && adapter.engine === 'postgresql') {
     console.warn('[DB] ⚠️ deasync no disponible — queries serán async. Ejecuta: npm install deasync');
 }
 
+// Test deasync functionality
+if (deasync && adapter.engine === 'postgresql') {
+    try {
+        const testResult = deasync((cb) => { cb(null, true); })();
+        if (testResult !== true) throw new Error('return value mismatch');
+    } catch (e) {
+        console.warn('[DB] ⚠️ deasync no funciona correctamente:', e.message, '— desactivando');
+        deasync = null;
+    }
+}
+
 const db = {
     engine: adapter.engine,
     _schemaMode: true,
@@ -776,6 +787,14 @@ const _schemaReady = (async () => {
     }
 
     console.log('[DB] ✅ Schema y migraciones completadas');
+
+    try {
+        const { seedGlobalAchievements } = require('../commands/economy/achievements');
+        seedGlobalAchievements();
+    } catch (e) {
+        console.error('[DB] Error seeding achievements:', e.message);
+    }
+
     db._schemaMode = false;
 
 })();
