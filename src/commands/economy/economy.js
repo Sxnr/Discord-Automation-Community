@@ -649,10 +649,8 @@ module.exports = {
             }
 
             // Inventario
-            db.prepare(`
-                INSERT INTO inventory (guild_id, user_id, item_id, quantity) VALUES (?, ?, ?, ?)
-                ON CONFLICT(guild_id, user_id, item_id) DO UPDATE SET quantity = inventory.quantity + ?
-            `).run(guildId, userId, itemId, qty, qty);
+            db.prepare('INSERT INTO inventory (guild_id, user_id, item_id, quantity) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING').run(guildId, userId, itemId, 0);
+            db.prepare('UPDATE inventory SET quantity = quantity + ? WHERE guild_id = ? AND user_id = ? AND item_id = ?').run(qty, guildId, userId, itemId);
 
             // Rol automático
             if (item.role_id && item.type === 'role') {

@@ -386,11 +386,8 @@ module.exports = {
                 activeSessions.delete(sessionId);
 
                 // Actualizar stats (timeout = wrong)
-                db.prepare(`
-                    INSERT INTO trivia_stats (guild_id, user_id, wrong, streak)
-                    VALUES (?, ?, 1, 0)
-                    ON CONFLICT(guild_id, user_id) DO UPDATE SET wrong = trivia_stats.wrong + 1, streak = 0
-                `).run(guildId, userId);
+                db.prepare(`INSERT INTO trivia_stats (guild_id, user_id, wrong, streak) VALUES (?, ?, 0, 0) ON CONFLICT DO NOTHING`).run(guildId, userId);
+                db.prepare(`UPDATE trivia_stats SET wrong = wrong + 1, streak = 0 WHERE guild_id = ? AND user_id = ?`).run(guildId, userId);
 
                 const expiredEmbed = EmbedBuilder.from(embed)
                     .setColor('#ED4245')

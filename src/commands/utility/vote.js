@@ -80,12 +80,8 @@ module.exports = {
             db.prepare('INSERT OR IGNORE INTO economy (guild_id, user_id) VALUES (?, ?)').run(guildId, userId);
             db.prepare('UPDATE economy SET wallet = wallet + ?, total_earned = total_earned + ? WHERE guild_id = ? AND user_id = ?')
                 .run(reward, reward, guildId, userId);
-            db.prepare(`
-                INSERT INTO votes (user_id, guild_id, last_vote, total, streak)
-                VALUES (?, ?, ?, 1, ?)
-                ON CONFLICT(user_id) DO UPDATE SET
-                    guild_id = ?, last_vote = ?, total = votes.total + 1, streak = ?
-            `).run(userId, guildId, now, streak, guildId, now, streak);
+            db.prepare('INSERT INTO votes (user_id, guild_id, last_vote, total, streak) VALUES (?, ?, ?, 0, 0) ON CONFLICT DO NOTHING').run(userId, guildId, now);
+            db.prepare('UPDATE votes SET guild_id = ?, last_vote = ?, total = total + 1, streak = ? WHERE user_id = ?').run(guildId, now, streak, userId);
 
             return interaction.editReply({
                 embeds: [new EmbedBuilder().setColor('#57F287')

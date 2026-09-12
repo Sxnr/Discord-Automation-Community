@@ -49,12 +49,15 @@ module.exports = {
 
         db.prepare(`
             INSERT INTO levels (guild_id, user_id, xp, level, messages, last_xp)
-            VALUES (?, ?, ?, 0, 1, ?)
-            ON CONFLICT(guild_id, user_id) DO UPDATE SET
-                xp       = levels.xp + ?,
-                messages = levels.messages + 1,
-                last_xp  = ?
-        `).run(guildId, userId, xpGained, Date.now(), xpGained, Date.now());
+            VALUES (?, ?, 0, 0, 0, 0)
+            ON CONFLICT DO NOTHING
+        `).run(guildId, userId);
+
+        db.prepare(`
+            UPDATE levels
+            SET xp = xp + ?, messages = messages + 1, last_xp = ?
+            WHERE guild_id = ? AND user_id = ?
+        `).run(xpGained, Date.now(), guildId, userId);
 
         const userData = db.prepare('SELECT * FROM levels WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
 
