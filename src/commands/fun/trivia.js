@@ -389,7 +389,7 @@ module.exports = {
                 db.prepare(`
                     INSERT INTO trivia_stats (guild_id, user_id, wrong, streak)
                     VALUES (?, ?, 1, 0)
-                    ON CONFLICT(guild_id, user_id) DO UPDATE SET wrong = wrong + 1, streak = 0
+                    ON CONFLICT(guild_id, user_id) DO UPDATE SET wrong = trivia_stats.wrong + 1, streak = 0
                 `).run(guildId, userId);
 
                 const expiredEmbed = EmbedBuilder.from(embed)

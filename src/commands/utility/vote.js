@@ -84,7 +84,7 @@ module.exports = {
                 INSERT INTO votes (user_id, guild_id, last_vote, total, streak)
                 VALUES (?, ?, ?, 1, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
-                    guild_id = ?, last_vote = ?, total = total + 1, streak = ?
+                    guild_id = ?, last_vote = ?, total = votes.total + 1, streak = ?
             `).run(userId, guildId, now, streak, guildId, now, streak);
 
             return interaction.editReply({

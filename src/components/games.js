@@ -117,15 +117,15 @@ module.exports = async function (interaction) {
             INSERT INTO trivia_stats (guild_id, user_id, correct, streak, best_streak)
             VALUES (?, ?, 1, 1, 1)
             ON CONFLICT(guild_id, user_id) DO UPDATE SET
-                correct     = correct + 1,
-                streak      = streak + 1,
-                best_streak = MAX(best_streak, streak + 1)
+                correct     = trivia_stats.correct + 1,
+                streak      = trivia_stats.streak + 1,
+                best_streak = MAX(trivia_stats.best_streak, trivia_stats.streak + 1)
         `).run(guildId, userId);
         } else {
             db.prepare(`
             INSERT INTO trivia_stats (guild_id, user_id, wrong, streak)
             VALUES (?, ?, 1, 0)
-            ON CONFLICT(guild_id, user_id) DO UPDATE SET wrong = wrong + 1, streak = 0
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET wrong = trivia_stats.wrong + 1, streak = 0
         `).run(guildId, userId);
         }
 

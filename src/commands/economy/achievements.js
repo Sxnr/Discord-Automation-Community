@@ -52,6 +52,7 @@ const GLOBAL_ACHIEVEMENTS = [
 ];
 
 // ── Seed logros globales ───────────────────────────────────────────────────
+// NO llamar aquí — se llama desde index.js después de db.ready
 function seedGlobalAchievements() {
     // 1. Limpiamos los globales existentes para evitar que se acumulen duplicados de sesiones anteriores
     db.prepare('DELETE FROM achievements WHERE is_global = 1').run();
@@ -73,7 +74,7 @@ function seedGlobalAchievements() {
     console.log(`✅ Se han sincronizado ${GLOBAL_ACHIEVEMENTS.length} logros globales.`);
 }
 
-seedGlobalAchievements();
+module.exports.seedGlobalAchievements = seedGlobalAchievements;
 
 // ── Unlock helper (llamado desde otros módulos) ────────────────────────────
 function checkAndUnlock(guildId, userId, condition, value, client = null) {

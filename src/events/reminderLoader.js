@@ -8,7 +8,7 @@ module.exports = {
     name: Events.ClientReady,
     once: true,
     async execute(client) {
-        const pending = db.prepare('SELECT * FROM reminders WHERE sent = 0').all();
+        const pending = await db.prepare('SELECT * FROM reminders WHERE sent = 0').all();
         const now     = Date.now();
         let   count   = 0;
 

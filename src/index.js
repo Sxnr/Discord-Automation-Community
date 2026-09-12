@@ -155,6 +155,9 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
     try {
         await db.ready;
         console.log('[DB] ✅ Base de datos lista');
+
+        const { seedGlobalAchievements } = require('./commands/economy/achievements');
+        seedGlobalAchievements();
     } catch (err) {
         console.error('[DB] ❌ Error inicializando base de datos:', err.message);
         process.exit(1);

@@ -651,7 +651,7 @@ module.exports = {
             // Inventario
             db.prepare(`
                 INSERT INTO inventory (guild_id, user_id, item_id, quantity) VALUES (?, ?, ?, ?)
-                ON CONFLICT(guild_id, user_id, item_id) DO UPDATE SET quantity = quantity + ?
+                ON CONFLICT(guild_id, user_id, item_id) DO UPDATE SET quantity = inventory.quantity + ?
             `).run(guildId, userId, itemId, qty, qty);
 
             // Rol automático

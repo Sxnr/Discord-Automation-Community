@@ -51,8 +51,8 @@ module.exports = {
             INSERT INTO levels (guild_id, user_id, xp, level, messages, last_xp)
             VALUES (?, ?, ?, 0, 1, ?)
             ON CONFLICT(guild_id, user_id) DO UPDATE SET
-                xp       = xp + ?,
-                messages = messages + 1,
+                xp       = levels.xp + ?,
+                messages = levels.messages + 1,
                 last_xp  = ?
         `).run(guildId, userId, xpGained, Date.now(), xpGained, Date.now());
 
