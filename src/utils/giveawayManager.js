@@ -1,9 +1,20 @@
 const { EmbedBuilder } = require('discord.js');
 const db = require('../database/db');
 
+// Helper: manejar sync (SQLite) y async (PostgreSQL) transparentemente
+async function dbAll(sql, ...params) {
+    const result = db.prepare(sql).all(...params);
+    return result && typeof result.then === 'function' ? await result : result;
+}
+
+async function dbRun(sql, ...params) {
+    const result = db.prepare(sql).run(...params);
+    return result && typeof result.then === 'function' ? await result : result;
+}
+
 async function checkGiveaways(client) {
     const now     = Date.now();
-    const pending = db.prepare('SELECT * FROM giveaways WHERE ended = 0 AND end_time <= ?').all(now);
+    const pending = await dbAll('SELECT * FROM giveaways WHERE ended = 0 AND end_time <= ?', now);
 
     for (const giveaway of pending) {
         try {
@@ -22,7 +33,7 @@ async function checkGiveaways(client) {
             }
 
             // Marcar como finalizado ANTES de editar para evitar doble ejecución
-            db.prepare('UPDATE giveaways SET ended = 1, winners = ? WHERE message_id = ?').run(JSON.stringify(winners), giveaway.message_id);
+            await dbRun('UPDATE giveaways SET ended = 1, winners = ? WHERE message_id = ?', JSON.stringify(winners), giveaway.message_id);
 
             const endEmbed = new EmbedBuilder()
                 .setTitle('🎊 SORTEO FINALIZADO')
@@ -63,7 +74,7 @@ async function checkGiveaways(client) {
 
 // ➕ Actualiza el contador de participantes en el embed cada cierto tiempo
 async function updateParticipantCounts(client) {
-    const active = db.prepare('SELECT * FROM giveaways WHERE ended = 0').all();
+    const active = await dbAll('SELECT * FROM giveaways WHERE ended = 0');
 
     for (const giveaway of active) {
         try {

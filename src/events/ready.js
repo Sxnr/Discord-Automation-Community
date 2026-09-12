@@ -26,9 +26,9 @@ module.exports = {
 
 
         // --- GESTOR DE SORTEOS ---
-        checkGiveaways(client);
-        setInterval(() => checkGiveaways(client), 10000);
-        setInterval(() => updateParticipantCounts(client), 60000);
+        checkGiveaways(client).catch(() => {});
+        setInterval(() => checkGiveaways(client).catch(() => {}), 10000);
+        setInterval(() => updateParticipantCounts(client).catch(() => {}), 60000);
 
 
         // --- STATUS ROTATIVO CON DATOS EN VIVO ---

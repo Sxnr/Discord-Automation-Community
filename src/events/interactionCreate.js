@@ -19,18 +19,23 @@ function markSeen(id) {
 // y flushamos periódicamente. Reduce I/O de disco significativamente.
 const analyticsBuffer = [];
 const ANALYTICS_FLUSH_INTERVAL = 30_000; // 30 segundos
-const insertStat = db.prepare('INSERT INTO command_stats (guild_id, command, user_id, used_at) VALUES (?, ?, ?, ?)');
+let insertStat = null;
 
 function flushAnalytics() {
     if (analyticsBuffer.length === 0) return;
+    if (!insertStat) {
+        insertStat = db.prepare('INSERT INTO command_stats (guild_id, command, user_id, used_at) VALUES (?, ?, ?, ?)');
+    }
     const batch = analyticsBuffer.splice(0, analyticsBuffer.length);
     try {
-        const insertMany = db.transaction((entries) => {
+        const txFn = db.transaction((entries) => {
             for (const entry of entries) {
                 insertStat.run(entry.guildId, entry.command, entry.userId, entry.usedAt);
             }
         });
-        insertMany(batch);
+        const result = txFn();
+        // Si es Promise (PostgreSQL), atrapar error silenciosamente
+        if (result && typeof result.then === 'function') result.catch(() => {});
     } catch {
         // Si falla el batch, no es crítico — los analytics son best-effort
     }

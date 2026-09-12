@@ -54,12 +54,12 @@ const GLOBAL_ACHIEVEMENTS = [
 // ── Seed logros globales ───────────────────────────────────────────────────
 function seedGlobalAchievements() {
     // 1. Limpiamos los globales existentes para evitar que se acumulen duplicados de sesiones anteriores
-    db.prepare('DELETE FROM achievements WHERE global = 1').run();
+    db.prepare('DELETE FROM achievements WHERE is_global = 1').run();
 
     // 2. Preparamos la inserción limpia
     const insert = db.prepare(`
         INSERT OR IGNORE INTO achievements
-        (guild_id, key, name, description, emoji, condition, threshold, secret, global)
+        (guild_id, key, name, description, emoji, condition, threshold, secret, is_global)
         VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, 1)
     `);
 
@@ -79,7 +79,7 @@ seedGlobalAchievements();
 function checkAndUnlock(guildId, userId, condition, value, client = null) {
     const candidates = db.prepare(`
         SELECT * FROM achievements
-        WHERE condition = ? AND threshold <= ? AND (guild_id = ? OR global = 1)
+        WHERE condition = ? AND threshold <= ? AND (guild_id = ? OR is_global = 1)
     `).all(condition, value, guildId);
 
     for (const achv of candidates) {
@@ -358,7 +358,7 @@ module.exports = {
             if (exists) return interaction.reply({ content: `❌ Ya existe un logro con la key \`${key}\`.`, flags: [MessageFlags.Ephemeral] });
 
             db.prepare(`
-                INSERT INTO achievements (guild_id, key, name, description, emoji, condition, threshold, secret, global)
+                INSERT INTO achievements (guild_id, key, name, description, emoji, condition, threshold, secret, is_global)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
             `).run(guildId, key, nombre, desc, emoji, condicion, umbral, secreto);
 
@@ -410,7 +410,7 @@ module.exports = {
 
             const target = interaction.options.getUser('usuario');
             const key    = interaction.options.getString('key');
-            const achv   = db.prepare('SELECT * FROM achievements WHERE key = ? AND (guild_id = ? OR global = 1)').get(key, guildId);
+            const achv   = db.prepare('SELECT * FROM achievements WHERE key = ? AND (guild_id = ? OR is_global = 1)').get(key, guildId);
 
             if (!achv) return interaction.reply({ content: `❌ Logro \`${key}\` no encontrado.`, flags: [MessageFlags.Ephemeral] });
 

@@ -28,6 +28,23 @@ if (DATABASE_URL && DATABASE_URL.startsWith('postgres')) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// HELPER: Convertir resultado async a síncrono (solo para PostgreSQL)
+// Usa busy-wait con Atomics.wait para no consumir CPU.
+// NOTA: Esto bloquea el event loop ~1-5ms por query. Para un bot pequeño
+// es aceptable. Para producción pesada, migrar a async/await completo.
+// ══════════════════════════════════════════════════════════════════════════════
+function toSync(promise) {
+    if (!promise || typeof promise.then !== 'function') return promise;
+    let done = false, val, err;
+    promise.then(v => { val = v; done = true; }, e => { err = e; done = true; });
+    while (!done) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+    }
+    if (err) throw err;
+    return val;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // WRAPPER: Interfaz unificada con transformación de queries
 // ══════════════════════════════════════════════════════════════════════════════
 const db = {
@@ -37,10 +54,20 @@ const db = {
         const transformed = transformQuery(sql, adapter.engine);
         const stmt = adapter.prepare(transformed);
         return {
-            run(...args)  { return stmt.run(...args); },
-            get(...args)  { return stmt.get(...args); },
-            all(...args)  { return stmt.all(...args); },
+            run(...args)  { return toSync(stmt.run(...args)); },
+            get(...args)  { return toSync(stmt.get(...args)); },
+            all(...args)  { return toSync(stmt.all(...args)); },
         };
+    },
+
+    run(sql, ...args) {
+        return this.prepare(sql).run(...args);
+    },
+    get(sql, ...args) {
+        return this.prepare(sql).get(...args);
+    },
+    all(sql, ...args) {
+        return this.prepare(sql).all(...args);
     },
 
     transaction(fn) {
@@ -244,7 +271,7 @@ const _schemaReady = (async () => {
             condition TEXT NOT NULL,
             threshold INTEGER DEFAULT 1,
             secret INTEGER DEFAULT 0,
-            global INTEGER DEFAULT 1,
+            is_global INTEGER DEFAULT 1,
             UNIQUE(guild_id, key)
         )
     `).run();
@@ -563,7 +590,7 @@ const _schemaReady = (async () => {
             options TEXT NOT NULL,
             category TEXT DEFAULT '💰 General',
             difficulty TEXT DEFAULT 'medium',
-            global INTEGER DEFAULT 0
+            is_global INTEGER DEFAULT 0
         )
     `).run();
 
@@ -629,6 +656,28 @@ const _schemaReady = (async () => {
     await migrateTable('reminders', { sent: 'INTEGER DEFAULT 0', timestamp: 'INTEGER' });
     await migrateTable('birthdays', { notified: 'INTEGER DEFAULT 0' });
     await migrateTable('server_events', { location: 'TEXT', ends_at: 'INTEGER' });
+
+    // ── Migración: Renombrar columna 'global' → 'is_global' ──────────────
+    // 'global' es keyword reservado en PostgreSQL
+    async function renameColumn(table, oldName, newName) {
+        try {
+            let cols;
+            if (db.engine === 'postgresql') {
+                cols = (await db.tableInfo(table)).map(c => c.name);
+            } else {
+                cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+            }
+            if (cols.includes(oldName) && !cols.includes(newName)) {
+                await db.prepare(`ALTER TABLE ${table} RENAME COLUMN ${oldName} TO ${newName}`).run();
+                console.log(`[DB] Migración: '${oldName}' → '${newName}' en '${table}'`);
+            }
+        } catch (e) {
+            // Si la tabla no existe aún o la columna ya fue renombrada, ignorar
+        }
+    }
+
+    await renameColumn('achievements', 'global', 'is_global');
+    await renameColumn('trivia_questions', 'global', 'is_global');
 
     await migrateTable('guild_settings', {
         xp_enabled: 'INTEGER DEFAULT 1',

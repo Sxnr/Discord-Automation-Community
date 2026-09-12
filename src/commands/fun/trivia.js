@@ -289,7 +289,7 @@ module.exports = {
             // 1. Preguntas personalizadas del servidor
             const customQ = db.prepare(`
                 SELECT * FROM trivia_questions
-                WHERE (guild_id = ? OR global = 1)
+                WHERE (guild_id = ? OR is_global = 1)
                 ${catFilter && catFilter !== '🌐 Global' ? "AND category = ?" : ""}
                 ${diffFilter ? "AND difficulty = ?" : ""}
                 ORDER BY RANDOM() LIMIT 50

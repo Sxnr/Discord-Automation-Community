@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  QUERY TRANSFORMER — Convierte SQL incompatible entre motores
-//  SQLite → PostgreSQL: AUTOINCREMENT → SERIAL, INSERT OR IGNORE, etc.
+//  SQLite → PostgreSQL: AUTOINCREMENT → SERIAL, timestamps → BIGINT, etc.
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -18,6 +18,28 @@ function transformQuery(sql, engine) {
         'SERIAL PRIMARY KEY'
     );
 
+    // ── Columnas de timestamp: INTEGER → BIGINT ──────────────────────────
+    // PostgreSQL INTEGER es 32-bit (~2.1B max). Timestamps en ms son ~13 dígitos.
+    // Detecta columnas tipo timestamp por nombre: *_at, *_time, last_*, born_*
+    const timestampPatterns = [
+        /(\w+_at)\s+INTEGER/gi,
+        /(\w+_time)\s+INTEGER/gi,
+        /(last_\w+)\s+INTEGER/gi,
+        /(born_\w+)\s+INTEGER/gi,
+        /(ends_at)\s+INTEGER/gi,
+        /(starts_at)\s+INTEGER/gi,
+        /(created_at)\s+INTEGER/gi,
+        /(remind_at)\s+INTEGER/gi,
+        /(unlocked_at)\s+INTEGER/gi,
+        /(verified_at)\s+INTEGER/gi,
+        /(played_at)\s+INTEGER/gi,
+        /(end_time)\s+INTEGER/gi,
+    ];
+
+    for (const pattern of timestampPatterns) {
+        sql = sql.replace(pattern, '$1 BIGINT');
+    }
+
     // ── INSERT OR IGNORE → INSERT ... ON CONFLICT DO NOTHING ──────────────
     if (/INSERT\s+OR\s+IGNORE\s+INTO/i.test(sql)) {
         sql = sql.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+/gi, 'INSERT INTO ');
@@ -29,24 +51,17 @@ function transformQuery(sql, engine) {
     // ── INSERT OR REPLACE → INSERT ... ON CONFLICT DO UPDATE ──────────────
     if (/INSERT\s+OR\s+REPLACE\s+INTO/i.test(sql)) {
         sql = sql.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+/gi, 'INSERT INTO ');
-        // Agregar ON CONFLICT DO UPDATE si no existe
         if (!/ON\s+CONFLICT/i.test(sql)) {
             sql = sql.trimEnd().replace(/;?\s*$/, '') +
                 ' ON CONFLICT (guild_id) DO UPDATE SET guild_id = EXCLUDED.guild_id';
         }
     }
 
-    // ── strftime('%s', 'now') → EXTRACT(EPOCH FROM NOW())::INTEGER ───────
+    // ── strftime('%s', 'now') → EXTRACT(EPOCH FROM NOW())::BIGINT ────────
     sql = sql.replace(
         /strftime\('%s',\s*'now'\)/gi,
-        "(EXTRACT(EPOCH FROM NOW())::INTEGER)"
+        "(EXTRACT(EPOCH FROM NOW())::BIGINT)"
     );
-
-    // ── IF NOT EXISTS para CREATE INDEX ya funciona en PostgreSQL ─────────
-    // (no necesita transformación)
-
-    // ── PRAGMA table_info → information_schema (se maneja en adapter) ────
-    // Los queries PRAGMA se interceptan directamente en el adapter
 
     return sql;
 }

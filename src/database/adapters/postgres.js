@@ -19,6 +19,7 @@ class PostgresAdapter {
 
     // ── Interfaz compatible con better-sqlite3 ──────────────────────────────
     // better-sqlite3 usa `?` como placeholder. PostgreSQL usa $1, $2, etc.
+    // Si la tabla no existe, retorna valores por defecto en vez de lanzar error.
 
     prepare(rawSql) {
         const adapter = this;
@@ -33,6 +34,12 @@ class PostgresAdapter {
                         changes: result.rowCount,
                         lastInsertRowid: result.rows?.[0]?.id ?? null,
                     };
+                } catch (err) {
+                    // Si la tabla no existe, retorna cambio 0 en vez de crashear
+                    if (err.code === '42P01') {
+                        return { changes: 0, lastInsertRowid: null };
+                    }
+                    throw err;
                 } finally {
                     client.release();
                 }
@@ -43,6 +50,9 @@ class PostgresAdapter {
                 try {
                     const result = await client.query(pgSql, params);
                     return result.rows[0] || undefined;
+                } catch (err) {
+                    if (err.code === '42P01') return undefined;
+                    throw err;
                 } finally {
                     client.release();
                 }
@@ -53,6 +63,9 @@ class PostgresAdapter {
                 try {
                     const result = await client.query(pgSql, params);
                     return result.rows;
+                } catch (err) {
+                    if (err.code === '42P01') return [];
+                    throw err;
                 } finally {
                     client.release();
                 }
@@ -80,8 +93,13 @@ class PostgresAdapter {
 
     pragma() { /* noop en PostgreSQL */ }
 
-    exec(sql) {
-        return this._pool.query(sql);
+    async exec(sql) {
+        try {
+            await this._pool.query(sql);
+        } catch (err) {
+            if (err.code === '42P01') return; // tabla no existe aún
+            throw err;
+        }
     }
 
     async close() {
@@ -89,25 +107,33 @@ class PostgresAdapter {
     }
 
     async tableInfo(tableName) {
-        const result = await this._pool.query(
-            `SELECT column_name AS name, data_type AS type
-             FROM information_schema.columns
-             WHERE table_name = $1
-             ORDER BY ordinal_position`,
-            [tableName]
-        );
-        return result.rows;
+        try {
+            const result = await this._pool.query(
+                `SELECT column_name AS name, data_type AS type
+                 FROM information_schema.columns
+                 WHERE table_name = $1
+                 ORDER BY ordinal_position`,
+                [tableName]
+            );
+            return result.rows;
+        } catch {
+            return [];
+        }
     }
 
     async tableExists(tableName) {
-        const result = await this._pool.query(
-            `SELECT EXISTS (
-                SELECT FROM information_schema.tables
-                WHERE table_name = $1
-            )`,
-            [tableName]
-        );
-        return result.rows[0]?.exists ?? false;
+        try {
+            const result = await this._pool.query(
+                `SELECT EXISTS (
+                    SELECT FROM information_schema.tables
+                    WHERE table_name = $1
+                )`,
+                [tableName]
+            );
+            return result.rows[0]?.exists ?? false;
+        } catch {
+            return false;
+        }
     }
 
     _convertPlaceholders(sql) {

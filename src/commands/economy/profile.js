@@ -27,7 +27,7 @@ function getLevels(guildId, userId) {
 function getAchievements(guildId, userId) {
     return db.prepare(`
         SELECT a.emoji, a.name FROM user_achievements ua
-        JOIN achievements a ON ua.achievement_key = a.key AND (a.guild_id = ? OR a.global = 1)
+        JOIN achievements a ON ua.achievement_key = a.key AND (a.guild_id = ? OR a.is_global = 1)
         WHERE ua.guild_id = ? AND ua.user_id = ?
         ORDER BY ua.unlocked_at DESC LIMIT 6
     `).all(guildId, guildId, userId);
@@ -399,7 +399,7 @@ module.exports = {
             const target = interaction.options.getUser('usuario');
             const key    = interaction.options.getString('key');
             const achv   = db.prepare(`
-                SELECT * FROM achievements WHERE key = ? AND (guild_id = ? OR global = 1)
+                SELECT * FROM achievements WHERE key = ? AND (guild_id = ? OR is_global = 1)
             `).get(key, guildId);
 
             if (!achv) return interaction.reply({ content: `❌ Logro \`${key}\` no encontrado.`, flags: [MessageFlags.Ephemeral] });
