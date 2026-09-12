@@ -10,16 +10,10 @@ module.exports = {
         const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
         const totalGuilds = client.guilds.cache.size;
 
-        // --- MÚSICA (con timeout para que no bloquee el arranque) ---
-        try {
-            await Promise.race([
-                initPlayer(client),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
-            ]);
-            console.log('[Music] ✅ Player listo');
-        } catch (e) {
-            console.warn('[Music] ⚠️ Player no se inicializó:', e.message);
-        }
+        // --- MÚSICA (en background, no bloquea el arranque) ---
+        initPlayer(client)
+            .then(() => console.log('[Music] ✅ Player listo'))
+            .catch(e => console.warn('[Music] ⚠️ Player no se inicializó:', e.message));
 
         // --- GESTOR DE SORTEOS ---
         checkGiveaways(client).catch(() => {});
