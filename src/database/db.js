@@ -42,11 +42,12 @@ if (!deasync && adapter.engine === 'postgresql') {
 
 const db = {
     engine: adapter.engine,
+    _schemaMode: true,
 
     prepare(sql) {
         const transformed = transformQuery(sql, adapter.engine);
         const stmt = adapter.prepare(transformed);
-        if (adapter.engine === 'sqlite') {
+        if (adapter.engine === 'sqlite' || this._schemaMode) {
             return {
                 run(...args)  { return stmt.run(...args); },
                 get(...args)  { return stmt.get(...args); },
@@ -775,6 +776,7 @@ const _schemaReady = (async () => {
     }
 
     console.log('[DB] ✅ Schema y migraciones completadas');
+    db._schemaMode = false;
 
 })();
 
