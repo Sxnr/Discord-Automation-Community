@@ -28,47 +28,50 @@ if (DATABASE_URL && DATABASE_URL.startsWith('postgres')) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// HELPER: Convertir resultado async a síncrono (solo para PostgreSQL)
-// Usa busy-wait con Atomics.wait para no consumir CPU.
-// NOTA: Esto bloquea el event loop ~1-5ms por query. Para un bot pequeño
-// es aceptable. Para producción pesada, migrar a async/await completo.
+// WRAPPER: Interfaz unificada con transformación de queries
+// Para PostgreSQL: deasync bloquea la llamada pero permite al event loop
+// procesar I/O (respuestas TCP de pg), evitando deadlock.
+// Para SQLite: retorna valores directamente (ya es sync).
 // ══════════════════════════════════════════════════════════════════════════════
-function toSync(promise) {
-    if (!promise || typeof promise.then !== 'function') return promise;
-    let done = false, val, err;
-    promise.then(v => { val = v; done = true; }, e => { err = e; done = true; });
-    while (!done) {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
-    }
-    if (err) throw err;
-    return val;
+let deasync;
+try { deasync = require('deasync'); } catch { deasync = null; }
+
+if (!deasync && adapter.engine === 'postgresql') {
+    console.warn('[DB] ⚠️ deasync no disponible — queries serán async. Ejecuta: npm install deasync');
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// WRAPPER: Interfaz unificada con transformación de queries
-// ══════════════════════════════════════════════════════════════════════════════
 const db = {
     engine: adapter.engine,
 
     prepare(sql) {
         const transformed = transformQuery(sql, adapter.engine);
         const stmt = adapter.prepare(transformed);
+        if (adapter.engine === 'sqlite') {
+            return {
+                run(...args)  { return stmt.run(...args); },
+                get(...args)  { return stmt.get(...args); },
+                all(...args)  { return stmt.all(...args); },
+            };
+        }
+        // PostgreSQL: usar deasync para bloquear sin deadlock
+        if (deasync) {
+            return {
+                run(...args)  { return deasync((cb) => { stmt.run(...args).then(r => cb(null, r)).catch(e => cb(e)); })(); },
+                get(...args)  { return deasync((cb) => { stmt.get(...args).then(r => cb(null, r)).catch(e => cb(e)); })(); },
+                all(...args)  { return deasync((cb) => { stmt.all(...args).then(r => cb(null, r)).catch(e => cb(e)); })(); },
+            };
+        }
+        // Fallback: sin deasync, retornar Promise (código debe usar await)
         return {
-            run(...args)  { return toSync(stmt.run(...args)); },
-            get(...args)  { return toSync(stmt.get(...args)); },
-            all(...args)  { return toSync(stmt.all(...args)); },
+            run(...args)  { return stmt.run(...args); },
+            get(...args)  { return stmt.get(...args); },
+            all(...args)  { return stmt.all(...args); },
         };
     },
 
-    run(sql, ...args) {
-        return this.prepare(sql).run(...args);
-    },
-    get(sql, ...args) {
-        return this.prepare(sql).get(...args);
-    },
-    all(sql, ...args) {
-        return this.prepare(sql).all(...args);
-    },
+    run(sql, ...args)  { return this.prepare(sql).run(...args); },
+    get(sql, ...args)  { return this.prepare(sql).get(...args); },
+    all(sql, ...args)  { return this.prepare(sql).all(...args); },
 
     transaction(fn) {
         return adapter.transaction(fn);
