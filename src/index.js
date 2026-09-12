@@ -99,11 +99,7 @@ checkEnv();
 const { ensureDependencies } = require('./utils/ensureDeps');
 ensureDependencies();
 
-client.login(config.token);
-
 // ── Graceful Shutdown ─────────────────────────────────────────────────────
-// Maneja SIGTERM/SIGINT para cerrar conexiones de voz, DB y WebSocket
-// limpiamente en vez de cortar el proceso de golpe.
 const { getPlayer } = require('./music/player');
 const db = require('./database/db');
 
@@ -116,7 +112,6 @@ async function gracefulShutdown(signal) {
     console.log(`\n[SHUTDOWN] ${signal} recibido. Cerrando limpiamente...`);
 
     try {
-        // 1. Desconectar todas las conexiones de voz del player
         const player = getPlayer();
         if (player) {
             const queues = player.nodes.cache;
@@ -133,9 +128,8 @@ async function gracefulShutdown(signal) {
     }
 
     try {
-        // 2. Cerrar la conexión de la base de datos
         if (db && typeof db.close === 'function') {
-            db.close();
+            await db.close();
             console.log('[SHUTDOWN] ✅ Base de datos cerrada');
         }
     } catch (e) {
@@ -143,7 +137,6 @@ async function gracefulShutdown(signal) {
     }
 
     try {
-        // 3. Destruir el cliente de Discord (cierra el WebSocket)
         client.destroy();
         console.log('[SHUTDOWN] ✅ Cliente Discord destruido');
     } catch (e) {
@@ -154,6 +147,18 @@ async function gracefulShutdown(signal) {
     process.exit(0);
 }
 
-// Timeout de seguridad: si el shutdown no termina en 10s, forzar salida
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ── Iniciar: esperar a que el schema de DB esté listo ──────────────────────
+(async () => {
+    try {
+        await db.ready;
+        console.log('[DB] ✅ Base de datos lista');
+    } catch (err) {
+        console.error('[DB] ❌ Error inicializando base de datos:', err.message);
+        process.exit(1);
+    }
+
+    client.login(config.token);
+})();
