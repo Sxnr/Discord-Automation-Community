@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  ADAPTADOR PostgreSQL — Implementa la interfaz del adapter usando pg
-//  NOTA: Este adaptador es ASÍNCRONO. Para migrar de SQLite a PostgreSQL,
-//  los archivos que usan db.prepare().run() necesitan ser convertidos a async.
+//  ADAPTADOR PostgreSQL — Interfaz compatible con better-sqlite3
+//  Usa pg Pool con conversión de placeholders (? → $1, $2, ...)
+//  Soporta transacciones con cliente dedicado y RETURNING para INSERTs.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const { Pool } = require('pg');
@@ -15,19 +15,40 @@ class PostgresAdapter {
             connectionTimeoutMillis: 5000,
         });
         this.engine = 'postgresql';
+        // Cliente dedicado para transacciones (se asigna durante transaction())
+        this._txClient = null;
     }
 
-    // ── Interfaz compatible con better-sqlite3 ──────────────────────────────
-    // better-sqlite3 usa `?` como placeholder. PostgreSQL usa $1, $2, etc.
-    // Si la tabla no existe, retorna valores por defecto en vez de lanzar error.
+    // ── Conversión de placeholders: ? → $1, $2, ... ──────────────────────
+    _convertPlaceholders(sql) {
+        let idx = 0;
+        return sql.replace(/\?/g, () => `$${++idx}`);
+    }
 
+    // ── Detecta si un INSERT necesita RETURNING id ───────────────────────
+    _needsReturning(sql) {
+        return /^\s*INSERT\s+INTO\s+/i.test(sql) &&
+               !/RETURNING/i.test(sql) &&
+               !/ON\s+CONFLICT/i.test(sql);
+    }
+
+    // ── Interfaz compatible con better-sqlite3 ────────────────────────────
     prepare(rawSql) {
         const adapter = this;
-        const pgSql = this._convertPlaceholders(rawSql);
+
+        // Agregar RETURNING id si es un INSERT simple (sin ON CONFLICT)
+        let pgSql;
+        if (this._needsReturning(rawSql)) {
+            pgSql = this._convertPlaceholders(rawSql.replace(/;?\s*$/, '')) + ' RETURNING id';
+        } else {
+            pgSql = this._convertPlaceholders(rawSql);
+        }
 
         return {
             async run(...params) {
-                const client = await adapter._pool.connect();
+                // Si hay un cliente de transacción activo, usarlo
+                const client = adapter._txClient || await adapter._pool.connect();
+                const mustRelease = !adapter._txClient;
                 try {
                     const result = await client.query(pgSql, params);
                     return {
@@ -35,18 +56,18 @@ class PostgresAdapter {
                         lastInsertRowid: result.rows?.[0]?.id ?? null,
                     };
                 } catch (err) {
-                    // Si la tabla no existe, retorna cambio 0 en vez de crashear
                     if (err.code === '42P01') {
                         return { changes: 0, lastInsertRowid: null };
                     }
                     throw err;
                 } finally {
-                    client.release();
+                    if (mustRelease) client.release();
                 }
             },
 
             async get(...params) {
-                const client = await adapter._pool.connect();
+                const client = adapter._txClient || await adapter._pool.connect();
+                const mustRelease = !adapter._txClient;
                 try {
                     const result = await client.query(pgSql, params);
                     return result.rows[0] || undefined;
@@ -54,12 +75,13 @@ class PostgresAdapter {
                     if (err.code === '42P01') return undefined;
                     throw err;
                 } finally {
-                    client.release();
+                    if (mustRelease) client.release();
                 }
             },
 
             async all(...params) {
-                const client = await adapter._pool.connect();
+                const client = adapter._txClient || await adapter._pool.connect();
+                const mustRelease = !adapter._txClient;
                 try {
                     const result = await client.query(pgSql, params);
                     return result.rows;
@@ -67,25 +89,28 @@ class PostgresAdapter {
                     if (err.code === '42P01') return [];
                     throw err;
                 } finally {
-                    client.release();
+                    if (mustRelease) client.release();
                 }
             },
         };
     }
 
-    // Transacción: ejecuta un callback con un cliente único
+    // ── Transacción: usa cliente dedicado para todas las operaciones ──────
     transaction(fn) {
-        return async () => {
-            const client = await this._pool.connect();
+        const adapter = this;
+        return async function () {
+            const client = await adapter._pool.connect();
             try {
+                adapter._txClient = client;
                 await client.query('BEGIN');
-                const result = await fn(client);
+                const result = await fn();
                 await client.query('COMMIT');
                 return result;
             } catch (err) {
                 await client.query('ROLLBACK');
                 throw err;
             } finally {
+                adapter._txClient = null;
                 client.release();
             }
         };
@@ -97,7 +122,7 @@ class PostgresAdapter {
         try {
             await this._pool.query(sql);
         } catch (err) {
-            if (err.code === '42P01') return; // tabla no existe aún
+            if (err.code === '42P01') return;
             throw err;
         }
     }
@@ -134,11 +159,6 @@ class PostgresAdapter {
         } catch {
             return false;
         }
-    }
-
-    _convertPlaceholders(sql) {
-        let idx = 0;
-        return sql.replace(/\?/g, () => `$${++idx}`);
     }
 }
 

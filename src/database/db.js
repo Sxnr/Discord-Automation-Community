@@ -4,9 +4,9 @@
 //  - SQLite (default): sync, sin dependencias externas
 //  - PostgreSQL: async, requiere DATABASE_URL
 //
-//  IMPORTANTE: Para PostgreSQL, todas las operaciones de DB son async.
-//  El objeto db se inicializa de forma asíncrona y está listo cuando
-//  el módulo termina de cargarse (via init promise).
+//  Para PostgreSQL, las operaciones son async por defecto.
+//  El wrapper deasync permite usar código sync (mejor compatibilidad).
+//  _schemaMode=true durante migraciones → bypass deasync (evita deadlock).
 // ═══════════════════════════════════════════════════════════════════════════
 
 require('dotenv').config();
@@ -29,23 +29,20 @@ if (DATABASE_URL && DATABASE_URL.startsWith('postgres')) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // WRAPPER: Interfaz unificada con transformación de queries
-// Para PostgreSQL: deasync bloquea la llamada pero permite al event loop
-// procesar I/O (respuestas TCP de pg), evitando deadlock.
-// Para SQLite: retorna valores directamente (ya es sync).
 // ══════════════════════════════════════════════════════════════════════════════
 let deasync;
 try { deasync = require('deasync'); } catch { deasync = null; }
 
 if (!deasync && adapter.engine === 'postgresql') {
-    console.warn('[DB] ⚠️ deasync no disponible — queries serán async. Ejecuta: npm install deasync');
+    console.warn('[DB] ⚠️ deasync no disponible — queries serán async');
 }
 
-// Test deasync with a REAL PostgreSQL query, not just a trivial callback
+// Test deasync con query real de PostgreSQL
 if (deasync && adapter.engine === 'postgresql') {
     try {
         const stmt = adapter.prepare('SELECT 1 AS test');
         const testResult = deasync((cb) => {
-            stmt.run().then(r => cb(null, r)).catch(e => cb(e));
+            stmt.get().then(r => cb(null, r)).catch(e => cb(e));
         })();
         if (testResult) {
             console.log('[DB] ✅ deasync funciona correctamente con PostgreSQL');
@@ -54,11 +51,13 @@ if (deasync && adapter.engine === 'postgresql') {
         }
     } catch (e) {
         console.warn('[DB] ⚠️ deasync NO funciona con PostgreSQL:', e.message);
-        console.warn('[DB] ⚠️ Todas las queries serán async (requiere await)');
         deasync = null;
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// db: Objeto exportado con interfaz unificada
+// ══════════════════════════════════════════════════════════════════════════════
 const db = {
     engine: adapter.engine,
     _schemaMode: true,
@@ -66,6 +65,8 @@ const db = {
     prepare(sql) {
         const transformed = transformQuery(sql, adapter.engine);
         const stmt = adapter.prepare(transformed);
+
+        // SQLite: siempre sync. PostgreSQL en schema mode: async sin deasync.
         if (adapter.engine === 'sqlite' || this._schemaMode) {
             return {
                 run(...args)  { return stmt.run(...args); },
@@ -73,7 +74,8 @@ const db = {
                 all(...args)  { return stmt.all(...args); },
             };
         }
-        // PostgreSQL: usar deasync para bloquear sin deadlock
+
+        // PostgreSQL runtime: deasync para compatibilidad con código sync
         if (deasync) {
             return {
                 run(...args)  { return deasync((cb) => { stmt.run(...args).then(r => cb(null, r)).catch(e => cb(e)); })(); },
@@ -81,7 +83,8 @@ const db = {
                 all(...args)  { return deasync((cb) => { stmt.all(...args).then(r => cb(null, r)).catch(e => cb(e)); })(); },
             };
         }
-        // Fallback: sin deasync, retornar Promise (código debe usar await)
+
+        // Fallback: retornar Promises
         return {
             run(...args)  { return stmt.run(...args); },
             get(...args)  { return stmt.get(...args); },
@@ -93,7 +96,14 @@ const db = {
     get(sql, ...args)  { return this.prepare(sql).get(...args); },
     all(sql, ...args)  { return this.prepare(sql).all(...args); },
 
+    // ── Transacción unificada ──────────────────────────────────────────────
+    // SQLite: better-sqlite3 transaction (sync). PostgreSQL: async con BEGIN/COMMIT.
+    // El callback(fn) recibe void — las operaciones usan db.prepare() internamente.
     transaction(fn) {
+        if (adapter.engine === 'sqlite') {
+            return adapter.transaction(fn);
+        }
+        // PostgreSQL: wraps en BEGIN/COMMIT, el adapter usa _txClient
         return adapter.transaction(fn);
     },
 
@@ -120,24 +130,7 @@ const db = {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// HELPER: Ejecutar operación sync o async según el motor
-// ══════════════════════════════════════════════════════════════════════════════
-function execSync(result) {
-    // Si es Promise (PostgreSQL), extraemos el valor con .then
-    // Pero como necesitamos sync para las migraciones de arranque,
-    // usamos un approach diferente: para PostgreSQL usamos queries directas
-    if (result && typeof result.then === 'function') {
-        // Esto NO es ideal — ver initIIFE para el manejo correcto
-        throw new Error('Async operation in sync context — use initIIFE');
-    }
-    return result;
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
 // SCHEMA + MIGRACIONES — Ejecutadas vía IIFE asíncrona
-// Para PostgreSQL, todas las operaciones son await.
-// Para SQLite, el await no afecta (ya retorna valores sync).
 // ══════════════════════════════════════════════════════════════════════════════
 
 const _schemaReady = (async () => {
@@ -681,7 +674,6 @@ const _schemaReady = (async () => {
     await migrateTable('server_events', { location: 'TEXT', ends_at: 'INTEGER' });
 
     // ── Migración: Renombrar columna 'global' → 'is_global' ──────────────
-    // 'global' es keyword reservado en PostgreSQL
     async function renameColumn(table, oldName, newName) {
         try {
             let cols;
@@ -798,12 +790,13 @@ const _schemaReady = (async () => {
 
     try {
         const { seedGlobalAchievements } = require('../commands/economy/achievements');
-        seedGlobalAchievements();
+        await seedGlobalAchievements();
     } catch (e) {
         console.error('[DB] Error seeding achievements:', e.message);
     }
 
     db._schemaMode = false;
+    console.log('[DB] Modo schema desactivado — queries ahora usan modo runtime');
 
 })();
 

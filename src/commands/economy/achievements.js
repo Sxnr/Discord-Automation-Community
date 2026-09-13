@@ -53,9 +53,9 @@ const GLOBAL_ACHIEVEMENTS = [
 
 // ── Seed logros globales ───────────────────────────────────────────────────
 // NO llamar aquí — se llama desde index.js después de db.ready
-function seedGlobalAchievements() {
+async function seedGlobalAchievements() {
     // 1. Limpiamos los globales existentes para evitar que se acumulen duplicados de sesiones anteriores
-    db.prepare('DELETE FROM achievements WHERE is_global = 1').run();
+    await db.prepare('DELETE FROM achievements WHERE is_global = 1').run();
 
     // 2. Preparamos la inserción limpia
     const insert = db.prepare(`
@@ -70,7 +70,7 @@ function seedGlobalAchievements() {
         }
     });
 
-    insertMany();
+    await insertMany();
     console.log(`✅ Se han sincronizado ${GLOBAL_ACHIEVEMENTS.length} logros globales.`);
 }
 

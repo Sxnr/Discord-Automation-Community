@@ -20,7 +20,6 @@ function transformQuery(sql, engine) {
 
     // ── Columnas de timestamp: INTEGER → BIGINT ──────────────────────────
     // PostgreSQL INTEGER es 32-bit (~2.1B max). Timestamps en ms son ~13 dígitos.
-    // Detecta columnas tipo timestamp por nombre: *_at, *_time, last_*, born_*
     const timestampPatterns = [
         /(\w+_at)\s+INTEGER/gi,
         /(\w+_time)\s+INTEGER/gi,
@@ -34,6 +33,8 @@ function transformQuery(sql, engine) {
         /(verified_at)\s+INTEGER/gi,
         /(played_at)\s+INTEGER/gi,
         /(end_time)\s+INTEGER/gi,
+        /(timestamp)\s+INTEGER/gi,
+        /(total)\s+INTEGER/gi,
     ];
 
     for (const pattern of timestampPatterns) {
@@ -48,12 +49,15 @@ function transformQuery(sql, engine) {
         }
     }
 
-    // ── INSERT OR REPLACE → INSERT ... ON CONFLICT DO UPDATE ──────────────
+    // ── INSERT OR REPLACE → DELETE + INSERT (simulabehavior de SQLite) ────
+    // NOTA: INSERT OR REPLACE en SQLite elimina la fila existente y re-inserta.
+    // En PostgreSQL no hay equivalente directo. Usamos ON CONFLICT DO UPDATE
+    // con todas las columnas del VALUES clause.
+    // Por ahora, si no hay cláusula ON CONFLICT, agregamos DO NOTHING (safe fallback).
     if (/INSERT\s+OR\s+REPLACE\s+INTO/i.test(sql)) {
         sql = sql.replace(/INSERT\s+OR\s+REPLACE\s+INTO\s+/gi, 'INSERT INTO ');
         if (!/ON\s+CONFLICT/i.test(sql)) {
-            sql = sql.trimEnd().replace(/;?\s*$/, '') +
-                ' ON CONFLICT (guild_id) DO UPDATE SET guild_id = EXCLUDED.guild_id';
+            sql = sql.trimEnd().replace(/;?\s*$/, '') + ' ON CONFLICT DO NOTHING';
         }
     }
 

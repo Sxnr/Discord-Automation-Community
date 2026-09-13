@@ -93,8 +93,8 @@ function setLang(guildId, lang) {
     if (!['es', 'en'].includes(lang)) return false;
     db.prepare(`
         INSERT INTO guild_settings (guild_id, language) VALUES (?, ?)
-        ON CONFLICT(guild_id) DO UPDATE SET language = excluded.language
-    `).run(guildId, lang);
+        ON CONFLICT(guild_id) DO UPDATE SET language = ?
+    `).run(guildId, lang, lang);
     return true;
 }
 
