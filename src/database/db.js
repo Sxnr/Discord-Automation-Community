@@ -40,13 +40,21 @@ if (!deasync && adapter.engine === 'postgresql') {
     console.warn('[DB] ⚠️ deasync no disponible — queries serán async. Ejecuta: npm install deasync');
 }
 
-// Test deasync functionality
+// Test deasync with a REAL PostgreSQL query, not just a trivial callback
 if (deasync && adapter.engine === 'postgresql') {
     try {
-        const testResult = deasync((cb) => { cb(null, true); })();
-        if (testResult !== true) throw new Error('return value mismatch');
+        const stmt = adapter.prepare('SELECT 1 AS test');
+        const testResult = deasync((cb) => {
+            stmt.run().then(r => cb(null, r)).catch(e => cb(e));
+        })();
+        if (testResult) {
+            console.log('[DB] ✅ deasync funciona correctamente con PostgreSQL');
+        } else {
+            throw new Error('empty result');
+        }
     } catch (e) {
-        console.warn('[DB] ⚠️ deasync no funciona correctamente:', e.message, '— desactivando');
+        console.warn('[DB] ⚠️ deasync NO funciona con PostgreSQL:', e.message);
+        console.warn('[DB] ⚠️ Todas las queries serán async (requiere await)');
         deasync = null;
     }
 }
