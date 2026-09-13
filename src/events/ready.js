@@ -1,4 +1,5 @@
 const { Events, ActivityType } = require('discord.js');
+console.log('[READY] Módulo ready.js cargado');
 const { checkGiveaways, updateParticipantCounts } = require('../utils/giveawayManager.js');
 const { initPlayer } = require('../music/player');
 
