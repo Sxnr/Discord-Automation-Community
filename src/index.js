@@ -68,6 +68,7 @@ if (fs.existsSync(commandsPath)) {
         }
     }
 }
+console.log(`[Commands] Total comandos cargados: ${client.commands.size}`);
 
 // --- HANDLER DE EVENTOS ---
 const eventsPath = path.join(__dirname, 'events');
@@ -75,14 +76,16 @@ const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
-    for (const file of eventFiles) {
-        const filePath = path.join(eventsPath, file);
-        const eventModule = require(filePath);
+            for (const file of eventFiles) {
+                const filePath = path.join(eventsPath, file);
+                const eventModule = require(filePath);
 
-        const events = Array.isArray(eventModule) ? eventModule : [eventModule];
+                const events = Array.isArray(eventModule) ? eventModule : [eventModule];
 
-        for (const event of events) {
-            if (event.once) {
+                for (const event of events) {
+                    const mode = event.once ? 'once' : 'on';
+                    console.log(`[Events] Registrando evento: ${event.name} (${mode}) desde ${file}`);
+                    if (event.once) {
                 client.once(event.name, (...args) => {
                     event.execute(...args, client).catch(err => {
                         console.error(`[Event:${file}] Error en execute:`, err);
@@ -98,6 +101,7 @@ if (fs.existsSync(eventsPath)) {
         }
     }
 }
+console.log(`[Events] Total eventos registrados`);
 
 // Chequeo de keys/APIs al arranque (no bloquea si faltan opcionales)
 checkEnv();

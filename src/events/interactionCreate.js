@@ -1,5 +1,6 @@
 const { Events, MessageFlags } = require('discord.js');
 const db = require('../database/db');
+console.log('[InteractionCreate] Módulo cargado - registrado en Events.InteractionCreate');
 
 // Red de seguridad: evita procesar la MISMA interacción dos veces en este proceso
 // (p.ej. si el listener se registrara doble). No protege contra 2 procesos distintos.
@@ -78,12 +79,18 @@ module.exports = {
         if (isDuplicate(interaction.id)) return;
         markSeen(interaction.id);
 
+        // ── DIAGNOSTIC LOG ──
+        console.log(`[InteractionCreate] tipo=${interaction.type} cmd=${interaction.commandName||'-'} user=${interaction.user?.id||'-'} guild=${interaction.guildId||'DM'}`);
+
         // ═════════════════════════════════════════
         // 1. COMANDOS SLASH
         // ═════════════════════════════════════════
         if (interaction.isChatInputCommand()) {
             const command = interaction.client.commands.get(interaction.commandName);
-            if (!command) return;
+            if (!command) {
+                console.warn(`[InteractionCreate] ⚠️ Comando '${interaction.commandName}' no encontrado en client.commands (¿comandos no registrados?)`);
+                return;
+            }
 
             // Buffer analytics en vez de INSERT directo
             analyticsBuffer.push({
@@ -94,9 +101,11 @@ module.exports = {
             });
 
             try {
+                console.log(`[InteractionCreate] ▶ Ejecutando /${interaction.commandName}...`);
                 await command.execute(interaction);
+                console.log(`[InteractionCreate] ✅ /${interaction.commandName} completado`);
             } catch (error) {
-                console.error('❌ Error en comando:', error?.code || '', error?.message || error);
+                console.error(`[InteractionCreate] ❌ Error en /${interaction.commandName}:`, error?.code || '', error?.message || error);
                 // Si la interacción ya fue respondida (ej. ejecución duplicada), no reintentar.
                 if (interaction.replied || interaction.deferred) return;
                 try {
